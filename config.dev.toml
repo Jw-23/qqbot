@@ -1,0 +1,15 @@
+logging_level = "INFO"
+cmd_suffix = "/"
+admins = []
+[cache]
+cache_lifetime = "10min"
+cache_capacity = 2000
+cache_idletime = "5min"
+[database]
+url = "mysql://root:@localhost/diesel_demo"
+max_connections = 20
+connect_timeout = "1min"
+acquire_timeout = "20s"
+idle_timeout = "40s"
+max_lifetime = "5min"
+sqlx_logging = true

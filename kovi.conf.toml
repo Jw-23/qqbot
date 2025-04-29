@@ -1,0 +1,10 @@
+[config]
+main_admin = 196264942
+admins = []
+debug = true
+
+[server]
+host = "127.0.0.1"
+port = 5432
+access_token = "jw123"
+secure = false
