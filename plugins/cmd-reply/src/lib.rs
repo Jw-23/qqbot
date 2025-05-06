@@ -1,5 +1,3 @@
-use std::any::Any;
-
 use kovi::PluginBuilder as plugin;
 use qqbot_core::{
     BOT_CACHE, StrategeType, UserData,
