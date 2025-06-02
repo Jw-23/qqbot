@@ -76,17 +76,10 @@ impl LlmReplyStrategy {
             Env::Group { group_id, .. } => SessionId::Group(*group_id as GroupId),
         };
 
-        // 获取历史对话
-        let history = if let Some(session) = crate::CONVERSATION_CACHE.get(&session_id).await {
-            let timeout = APPCONFIG.cache.conversation_timeout_minutes.unwrap_or(10);
-            if !session.is_expired(timeout) {
-                session.get_recent_messages(10)
-            } else {
-                vec![]
-            }
-        } else {
-            vec![]
-        };
+        // 获取历史对话 - 使用 ConversationManager 简化逻辑
+        let history = crate::conversation::ConversationManager::get_conversation_history(
+            session_id, 10
+        ).await;
 
         // 将历史对话转换为ChatMessage格式，在群聊中包含用户信息
         for conv_msg in history {
@@ -186,55 +179,25 @@ impl RelyStrategy for LlmReplyStrategy {
                 };
 
                 // 先记录用户消息到对话历史
-                let mut session = if let Some(existing_session) =
-                    crate::CONVERSATION_CACHE.get(&session_id).await
-                {
-                    existing_session
-                } else {
-                    let max_history = APPCONFIG.cache.max_conversation_history.unwrap_or(20);
-                    crate::ConversationSession::new(max_history)
-                };
-
-                // 添加用户消息
-                let user_message = crate::ConversationMessage {
-                    role: "user".to_string(),
-                    content: text.clone(),
-                    timestamp: chrono::Utc::now(),
-                    user_id: Some(ctx.sender_id as UserId),
-                    username: match &ctx.env {
+                crate::conversation::ConversationManager::add_user_message_with_info(
+                    session_id.clone(),
+                    text.clone(),
+                    ctx.sender_id as UserId,
+                    match &ctx.env {
                         Env::Group { .. } => ctx.sender_name.clone().or_else(|| Some(format!("用户{}", ctx.sender_id))),
-                        Env::Private => None, // 私聊中不需要用户名
+                        Env::Private => None,
                     },
-                };
-                session.messages.push_back(user_message);
-                session.last_activity = chrono::Utc::now();
+                ).await;
 
-                // 保持历史记录数量在限制内
-                if session.messages.len() > session.max_history {
-                    session.messages.pop_front();
-                }
                 // 获取对话历史并调用LLM
                 let messages = self.get_conversation_history(ctx, text).await;
                 let response = self.call_llm_api(messages).await?;
 
                 // 记录助手回复到对话历史
-                let assistant_message = crate::ConversationMessage {
-                    role: "assistant".to_string(),
-                    content: response.clone(),
-                    timestamp: chrono::Utc::now(),
-                    user_id: None, // 助手消息没有用户ID
-                    username: Some("Assistant".to_string()),
-                };
-                session.messages.push_back(assistant_message);
-                session.last_activity = chrono::Utc::now();
-
-                // 保持历史记录数量在限制内
-                if session.messages.len() > session.max_history {
-                    session.messages.pop_front();
-                }
-
-                // 保存会话到缓存
-                crate::CONVERSATION_CACHE.insert(session_id, session).await;
+                crate::conversation::ConversationManager::add_assistant_message(
+                    session_id,
+                    response.clone(),
+                ).await;
 
                 Ok(MessageContent::Text(response))
             }

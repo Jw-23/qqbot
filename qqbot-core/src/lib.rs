@@ -20,8 +20,8 @@ pub mod repo; // 添加错误处理模块
 // 重新导出常用类型
 pub use error::{AppError, AppResult};
 
-type UserId = i64;
-type GroupId = i64;
+pub type UserId = i64;
+pub type GroupId = i64;
 
 // 对话消息结构
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -150,10 +150,11 @@ pub static BOT_CACHE: Lazy<Cache<UserId, UserData>> = Lazy::new(|| {
         .build()
 });
 
-// 对话历史缓存 - 10分钟过期
+// 对话历史缓存 - 使用配置文件的超时时间
 pub static CONVERSATION_CACHE: Lazy<Cache<SessionId, ConversationSession>> = Lazy::new(|| {
+    let timeout_minutes = APPCONFIG.cache.conversation_timeout_minutes.unwrap_or(10);
     Cache::builder()
         .max_capacity(APPCONFIG.cache.conversation_capacity.unwrap_or(1000))
-        .time_to_idle(Duration::from_secs(600)) // 10分钟无活动则过期
+        .time_to_idle(Duration::from_secs((timeout_minutes * 60) as u64))
         .build()
 });

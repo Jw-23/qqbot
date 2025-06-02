@@ -1,9 +1,9 @@
-[apply-request]
+[kovi-plugin-siliconflow]
 enable_on_startup = true
 access_control = false
 list_mode = "WhiteList"
 
-[apply-request.access_list]
+[kovi-plugin-siliconflow.access_list]
 friends = []
 groups = []
 
@@ -16,11 +16,11 @@ list_mode = "WhiteList"
 friends = []
 groups = []
 
-[kovi-plugin-siliconflow]
+[apply-request]
 enable_on_startup = true
 access_control = false
 list_mode = "WhiteList"
 
-[kovi-plugin-siliconflow.access_list]
+[apply-request.access_list]
 friends = []
 groups = []

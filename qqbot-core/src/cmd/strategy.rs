@@ -15,7 +15,7 @@ pub struct Strategy {
 
     #[arg(help = "策略类型: cmd | llm")]
     strategy: String,
-    #[arg(required = false, help = "模型")]
+    #[arg(required = false, help = "模型", default_value_t=String::from(""))]
     model: String,
 }
 
