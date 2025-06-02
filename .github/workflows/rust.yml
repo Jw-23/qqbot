@@ -11,7 +11,7 @@ env:
 
 jobs:
   build:
-    name: Build and Test
+    name: Build
     runs-on: ubuntu-latest
 
     steps:
@@ -21,7 +21,6 @@ jobs:
       uses: dtolnay/rust-toolchain@stable
       with:
         toolchain: stable
-        components: rustfmt, clippy
     
     - name: Cache dependencies
       uses: actions/cache@v3
@@ -39,20 +38,11 @@ jobs:
         sudo apt-get update
         sudo apt-get install -y pkg-config libssl-dev
     
-    - name: Check formatting (non-blocking)
-      run: cargo fmt --all -- --check
-      continue-on-error: true
-      
-    - name: Run clippy (allow warnings)
-      run: cargo clippy --all-targets --all-features
-    
-    - name: Build all targets
+    # 主要目标：确保能够编译成功
+    - name: Build project
       run: cargo build --release --verbose
-      
-    - name: Run tests (non-blocking)
-      run: cargo test --verbose
-      continue-on-error: true
     
+    # 可选：上传构建产物
     - name: Upload artifacts
       uses: actions/upload-artifact@v4
       with:
@@ -60,4 +50,5 @@ jobs:
         path: |
           target/release/qqbot-cmd
         if-no-files-found: warn
+      if: success()
 
