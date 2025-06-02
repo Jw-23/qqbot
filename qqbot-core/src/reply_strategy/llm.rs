@@ -88,18 +88,44 @@ impl LlmReplyStrategy {
             vec![]
         };
 
-        // 将历史对话转换为ChatMessage格式
+        // 将历史对话转换为ChatMessage格式，在群聊中包含用户信息
         for conv_msg in history {
+            let content = match &ctx.env {
+                Env::Group { .. } => {
+                    // 在群聊中，为每条消息添加用户标识
+                    if conv_msg.role == "user" {
+                        if let Some(user_id) = conv_msg.user_id {
+                            let default_username = format!("用户{}", user_id);
+                            let username = conv_msg.username.as_deref().unwrap_or(&default_username);
+                            format!("[{}]: {}", username, conv_msg.content)
+                        } else {
+                            conv_msg.content.clone()
+                        }
+                    } else {
+                        conv_msg.content.clone()
+                    }
+                }
+                Env::Private => conv_msg.content.clone(),
+            };
+
             messages.push(ChatMessage {
                 role: conv_msg.role.clone(),
-                content: conv_msg.content,
+                content,
             });
         }
 
         // 添加当前用户消息
+        let current_content = match &ctx.env {
+            Env::Group { .. } => {
+                // 在群聊中为当前消息也添加用户标识
+                format!("[用户{}]: {}", ctx.sender_id, current_message)
+            }
+            Env::Private => current_message.to_string(),
+        };
+
         messages.push(ChatMessage {
             role: "user".to_string(),
-            content: current_message.to_string(),
+            content: current_content,
         });
 
         messages
@@ -175,7 +201,10 @@ impl RelyStrategy for LlmReplyStrategy {
                     content: text.clone(),
                     timestamp: chrono::Utc::now(),
                     user_id: Some(ctx.sender_id as UserId),
-                    username: None, // 这里可以从上下文获取用户名
+                    username: match &ctx.env {
+                        Env::Group { .. } => ctx.sender_name.clone().or_else(|| Some(format!("用户{}", ctx.sender_id))),
+                        Env::Private => None, // 私聊中不需要用户名
+                    },
                 };
                 session.messages.push_back(user_message);
                 session.last_activity = chrono::Utc::now();

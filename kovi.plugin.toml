@@ -7,20 +7,20 @@ list_mode = "WhiteList"
 friends = []
 groups = []
 
-[kovi-plugin-siliconflow]
-enable_on_startup = true
-access_control = false
-list_mode = "WhiteList"
-
-[kovi-plugin-siliconflow.access_list]
-friends = []
-groups = []
-
 [reply]
 enable_on_startup = true
 access_control = false
 list_mode = "WhiteList"
 
 [reply.access_list]
+friends = []
+groups = []
+
+[kovi-plugin-siliconflow]
+enable_on_startup = true
+access_control = false
+list_mode = "WhiteList"
+
+[kovi-plugin-siliconflow.access_list]
 friends = []
 groups = []

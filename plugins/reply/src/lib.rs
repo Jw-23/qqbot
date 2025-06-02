@@ -64,6 +64,7 @@ async fn main() {
                         group_admin: event.sender.role == Some(String::from("admin"))
                             || event.sender.role == Some(String::from("owner")),
                         history: vec![], // 未来可以扩展为真实的对话历史
+                        sender_name: event.sender.nickname.clone().or_else(|| Some(format!("用户{}", event.sender.user_id))),
                     };
 
                     // 使用统一的回复管理器处理消息

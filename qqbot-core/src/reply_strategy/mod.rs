@@ -39,6 +39,7 @@ pub struct MessageContext {
     pub group_admin: bool,
     pub message: MessageContent,
     pub history: Vec<MessageContent>,
+    pub sender_name: Option<String>, // 发送者的昵称或用户名，在群聊中特别有用
 }
 #[derive(Debug)]
 pub struct ReplyError(pub String);
@@ -85,6 +86,7 @@ async fn reply_message_test() -> Result<(), Box<dyn std::error::Error>> {
         message: mc,
         group_admin: false,
         history: vec![],
+        sender_name: None,
     };
     let cmd_strategy = CommandReplyStrategy::new();
     let result = cmd_strategy.reply(&message_context).await;

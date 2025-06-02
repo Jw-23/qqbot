@@ -40,6 +40,34 @@ impl ConversationManager {
         CONVERSATION_CACHE.insert(session_id, session).await;
     }
 
+    /// 添加带用户信息的用户消息到会话
+    pub async fn add_user_message_with_info(
+        session_id: SessionId,
+        content: String,
+        user_id: crate::UserId,
+        username: Option<String>,
+    ) {
+        let mut session = Self::get_or_create_session(session_id.clone()).await;
+        
+        let message = ConversationMessage {
+            role: "user".to_string(),
+            content,
+            timestamp: Utc::now(),
+            user_id: Some(user_id),
+            username,
+        };
+
+        session.messages.push_back(message);
+        session.last_activity = Utc::now();
+
+        // 保持历史记录数量在限制内
+        while session.messages.len() > session.max_history {
+            session.messages.pop_front();
+        }
+
+        CONVERSATION_CACHE.insert(session_id, session).await;
+    }
+
     /// 添加助手回复到会话
     pub async fn add_assistant_message(session_id: SessionId, content: String) {
         let mut session = Self::get_or_create_session(session_id.clone()).await;
@@ -59,6 +87,41 @@ impl ConversationManager {
             }
         }
         Vec::new()
+    }
+
+    /// 获取特定用户在群聊中的发言历史
+    pub async fn get_user_conversation_history(
+        session_id: SessionId,
+        user_id: crate::UserId,
+        limit: usize,
+    ) -> Vec<ConversationMessage> {
+        if let Some(session) = CONVERSATION_CACHE.get(&session_id).await {
+            let timeout = APPCONFIG.cache.conversation_timeout_minutes.unwrap_or(10);
+            if !session.is_expired(timeout) {
+                // 先收集所有匹配的消息
+                let user_messages: Vec<ConversationMessage> = session
+                    .messages
+                    .iter()
+                    .filter(|msg| {
+                        // 过滤出特定用户的消息或助手回复
+                        msg.role == "assistant" || msg.user_id == Some(user_id)
+                    })
+                    .cloned()
+                    .collect();
+                
+                // 取最后limit条
+                let len = user_messages.len();
+                if len > limit {
+                    user_messages.into_iter().skip(len - limit).collect()
+                } else {
+                    user_messages
+                }
+            } else {
+                Vec::new()
+            }
+        } else {
+            Vec::new()
+        }
     }
 
     /// 清除用户的对话历史
