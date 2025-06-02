@@ -35,10 +35,14 @@ async fn main() {
                         // 命令模式只响应命令消息
                         msg.starts_with(&APPCONFIG.cmd_suffix)
                     }
-                    StrategeType::LlmStrategy => {
-                        // LLM模式响应所有文本消息
-                        true
-                    }
+                    StrategeType::LlmStrategy => event.message.iter().any(|m| {
+                        m.type_ == "at"
+                            && m.data
+                                .get("qq")
+                                .and_then(|v| v.as_i64())
+                                .map(|qq| qq == event.self_id)
+                                .unwrap_or(false)
+                    }),
                 };
 
                 if should_respond {
@@ -64,7 +68,11 @@ async fn main() {
                         group_admin: event.sender.role == Some(String::from("admin"))
                             || event.sender.role == Some(String::from("owner")),
                         history: vec![], // 未来可以扩展为真实的对话历史
-                        sender_name: event.sender.nickname.clone().or_else(|| Some(format!("用户{}", event.sender.user_id))),
+                        sender_name: event
+                            .sender
+                            .nickname
+                            .clone()
+                            .or_else(|| Some(format!("用户{}", event.sender.user_id))),
                     };
 
                     // 使用统一的回复管理器处理消息

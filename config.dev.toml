@@ -4,7 +4,7 @@ admins = []
 [cache]
 cache_lifetime = "10min"
 cache_capacity = 2000
-cache_idletime = "5min"
+cache_idletime = "10min"
 # 对话缓存配置
 conversation_capacity = 1000
 max_conversation_history = 20
