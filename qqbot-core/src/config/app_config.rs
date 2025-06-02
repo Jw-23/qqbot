@@ -52,4 +52,11 @@ pub struct LlmConfig {
     pub max_tokens: u32,
     pub top_p: f32,
     pub timeout_seconds: u64,
+    // 群聊自动捕获消息的配置
+    #[serde(default = "default_auto_capture_group")]
+    pub auto_capture_group_messages: bool,
+}
+
+fn default_auto_capture_group() -> bool {
+    false
 }

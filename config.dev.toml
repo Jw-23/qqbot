@@ -27,3 +27,5 @@ temperature = 0.7
 max_tokens = 2048
 top_p = 0.95
 timeout_seconds = 30
+# 是否自动捕获群聊中的所有消息（不需要@机器人）
+auto_capture_group_messages = true

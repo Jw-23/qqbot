@@ -1,8 +1,9 @@
 use kovi::PluginBuilder as plugin;
 use qqbot_core::{
-    BOT_CACHE, StrategeType, UserData,
+    BOT_CACHE, StrategeType, UserData, SessionId,
     config::{APPCONFIG, get_db},
     reply_strategy::{Env, MessageContent, MessageContext, reply_manager::ReplyManager},
+    conversation::ConversationManager,
 };
 
 #[kovi::plugin]
@@ -39,6 +40,7 @@ async fn main() {
                         if event.message_type == "private" {
                             true
                         } else {
+                            // 群聊中，只有被@时才回复
                             event.message.iter().any(|m| {
                                 m.type_ == "at"
                                     && m.data
@@ -50,6 +52,60 @@ async fn main() {
                         }
                     }
                 };
+
+                // 在LLM模式下，如果开启了自动捕获群聊消息，需要将所有群聊消息添加到对话历史中
+                let should_capture = match data.stratege {
+                    StrategeType::LlmStrategy => {
+                        if event.message_type == "group" && APPCONFIG.llm.auto_capture_group_messages {
+                            true
+                        } else if event.message_type == "private" {
+                            true
+                        } else {
+                            false
+                        }
+                    }
+                    _ => false,
+                };
+
+                // 捕获消息到对话历史（即使不回复）
+                if should_capture && !should_respond {
+                    let env = if event.message_type == "private" {
+                        Env::Private
+                    } else if event.message_type == "group" {
+                        if let Some(group_id) = event.group_id {
+                            Env::Group { group_id }
+                        } else {
+                            Env::Private
+                        }
+                    } else {
+                        Env::Private
+                    };
+
+                    // 只记录消息到对话历史，不生成回复
+                    let session_id = match env {
+                        Env::Private => SessionId::Private(event.sender.user_id),
+                        Env::Group { group_id } => SessionId::Group(group_id),
+                    };
+
+                    let username = match env {
+                        Env::Group { .. } => {
+                            event.sender.nickname.clone()
+                                .unwrap_or_else(|| format!("用户{}", event.sender.user_id))
+                        }
+                        Env::Private => format!("用户{}", event.sender.user_id),
+                    };
+
+                    // 使用 ConversationManager 添加用户消息
+                    ConversationManager::add_user_message_with_info(
+                        session_id,
+                        msg.to_string(),
+                        event.sender.user_id,
+                        match env {
+                            Env::Group { .. } => Some(username),
+                            Env::Private => None,
+                        },
+                    ).await;
+                }
                 
                 if should_respond {
                     let env = if event.message_type == "private" {
