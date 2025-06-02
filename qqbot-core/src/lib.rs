@@ -124,7 +124,7 @@ pub enum StrategeType {
 }
 impl std::default::Default for StrategeType {
     fn default() -> Self {
-        StrategeType::CmdStrategy
+        StrategeType::LlmStrategy
     }
 }
 #[derive(Serialize, Deserialize, Debug, Clone)]
