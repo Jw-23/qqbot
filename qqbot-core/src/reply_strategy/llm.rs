@@ -63,18 +63,12 @@ impl LlmReplyStrategy {
     async fn get_conversation_history(
         &self,
         ctx: &MessageContext,
-        current_message: &str,
+        session_id: SessionId,
     ) -> Vec<ChatMessage> {
         let mut messages = vec![ChatMessage {
             role: "system".to_string(),
             content: APPCONFIG.llm.system_prompt.clone(),
         }];
-
-        // 根据消息环境创建会话ID
-        let session_id = match &ctx.env {
-            Env::Private => SessionId::Private(ctx.sender_id as UserId),
-            Env::Group { group_id, .. } => SessionId::Group(*group_id as GroupId),
-        };
 
         // 获取历史对话 - 使用 ConversationManager 简化逻辑
         let history = crate::conversation::ConversationManager::get_conversation_history(
@@ -89,7 +83,8 @@ impl LlmReplyStrategy {
                     if conv_msg.role == "user" {
                         if let Some(user_id) = conv_msg.user_id {
                             let default_username = format!("用户{}", user_id);
-                            let username = conv_msg.username.as_deref().unwrap_or(&default_username);
+                            let username = conv_msg.username.as_deref()
+                                .unwrap_or(&default_username);
                             format!("[{}]: {}", username, conv_msg.content)
                         } else {
                             conv_msg.content.clone()
@@ -106,20 +101,6 @@ impl LlmReplyStrategy {
                 content,
             });
         }
-
-        // 添加当前用户消息
-        let current_content = match &ctx.env {
-            Env::Group { .. } => {
-                // 在群聊中为当前消息也添加用户标识
-                format!("[用户{}]: {}", ctx.sender_id, current_message)
-            }
-            Env::Private => current_message.to_string(),
-        };
-
-        messages.push(ChatMessage {
-            role: "user".to_string(),
-            content: current_content,
-        });
 
         messages
     }
@@ -178,19 +159,27 @@ impl RelyStrategy for LlmReplyStrategy {
                     Env::Group { group_id, .. } => SessionId::Group(*group_id as GroupId),
                 };
 
-                // 先记录用户消息到对话历史
+                // 先记录用户消息到对话历史，使用统一的用户名格式
+                let username = match &ctx.env {
+                    Env::Group { .. } => {
+                        ctx.sender_name.clone()
+                            .unwrap_or_else(|| format!("用户{}", ctx.sender_id))
+                    }
+                    Env::Private => format!("用户{}", ctx.sender_id),
+                };
+
                 crate::conversation::ConversationManager::add_user_message_with_info(
                     session_id.clone(),
                     text.clone(),
                     ctx.sender_id as UserId,
                     match &ctx.env {
-                        Env::Group { .. } => ctx.sender_name.clone().or_else(|| Some(format!("用户{}", ctx.sender_id))),
+                        Env::Group { .. } => Some(username),
                         Env::Private => None,
                     },
                 ).await;
 
-                // 获取对话历史并调用LLM
-                let messages = self.get_conversation_history(ctx, text).await;
+                // 获取对话历史（包含刚刚添加的当前消息）
+                let messages = self.get_conversation_history(ctx, session_id.clone()).await;
                 let response = self.call_llm_api(messages).await?;
 
                 // 记录助手回复到对话历史
