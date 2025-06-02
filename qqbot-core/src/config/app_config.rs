@@ -9,6 +9,7 @@ pub struct AppConfig {
     pub database: DatabaseConfig,
     pub cache:CacheConfig,
     pub admins:Vec<i64>,
+    pub llm: LlmConfig,
 }
 
 #[derive(Debug,Deserialize)]
@@ -18,6 +19,10 @@ pub struct CacheConfig{
     pub cache_lifetime: Duration,
     #[serde(with = "humantime_serde")]
     pub cache_idletime: Duration,
+    // 对话缓存相关配置
+    pub conversation_capacity: Option<u64>,
+    pub max_conversation_history: Option<usize>,
+    pub conversation_timeout_minutes: Option<i64>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -35,4 +40,16 @@ pub struct DatabaseConfig {
     pub max_connections: u32,
     pub sqlx_logging: bool,
     // pub schema:Option<String>
+}
+
+#[derive(Debug, Deserialize)]
+pub struct LlmConfig {
+    pub api_key: String,
+    pub base_url: String,
+    pub model: String,
+    pub system_prompt: String,
+    pub temperature: f32,
+    pub max_tokens: u32,
+    pub top_p: f32,
+    pub timeout_seconds: u64,
 }

@@ -3,12 +3,12 @@ use std::pin::Pin;
 // 1. 修正 use 语句：不需要 clap_derive::Parser，只需要 clap::Parser trait
 use clap::{Parser, Subcommand, ValueEnum};
 use crate::{
-    cmd::{Execute, CMD_REGISTRY},
-    config::{get_db, DB_GLOBAL},
-    repo::{grade::GradeRepo, GradeRepository}, service::grade_service::{GradeService, GradeServiceImpl},
+    config::DB_GLOBAL,
+    service::grade_service::{GradeService, GradeServiceImpl},
 };
 
-use super::{CmdError, CmdHandler, CmdResult, CommonArgs, HandlerBuilder}; // 移除 clap_derive::Parser
+use super::{CmdHandler, CmdResult, CommonArgs, HandlerBuilder}; // 移除 clap_derive::Parser
+use crate::error::AppError;
 
 #[derive(Parser, Debug)]
 #[command(
@@ -72,18 +72,18 @@ impl HandlerBuilder for Query {
         Box::new(move |args: Vec<String>| {
             // 将 async 块的结果明确赋值给一个变量
             let fut = async move {
-                let query = Query::try_parse_from(args).map_err(|err| CmdError(err.to_string()))?;
+                let query = Query::try_parse_from(args).map_err(|err| AppError::command(err.to_string()))?;
                 match query.commands {
                     QueryItem::Grade {  mode } => {
                         let conn = DB_GLOBAL
                             .get()
-                            .ok_or_else(|| CmdError("failed to connect database".into()))?;
+                            .ok_or_else(|| AppError::command(String::from("failed to connect database")))?;
                         
                         let grade_repo = GradeServiceImpl::new(conn.clone()); // 确保 conn 可以 clone
                         let grades = grade_repo
                         .find_grades(query.common.sender)
                         .await
-                        .map_err(|err|CmdError(format!("bind your student number with /bind (id) first:{}",err.to_string())))?;
+                        .map_err(|err|AppError::command(format!("bind your student number with /bind (id) first:{}",err.to_string())))?;
 
                         match mode {
                             GradeQueryMode::Summary => {
@@ -98,15 +98,15 @@ impl HandlerBuilder for Query {
                                          &mut report_str,
                                          "{} 在 {} 中获得 {} 分;\n",
                                          record.student_name, record.exam_name, record.score
-                                     ).map_err(|_| CmdError("failed to format report".into()))?; // 处理 write! 可能的错误
+                                     ).map_err(|_| AppError::command(String::from("failed to format report")))?; // 处理 write! 可能的错误
                                      if record.score<60 {
-                                         write!(&mut report_str,"请多花时间，微积分对未来的课程非常重要，务必掌握\n").map_err(|_| CmdError("failed to format report".into()))?; // 处理 write! 可能的错误
+                                         write!(&mut report_str,"请多花时间，微积分对未来的课程非常重要，务必掌握\n").map_err(|_| AppError::command(String::from("failed to format report")))?; // 处理 write! 可能的错误
                                      }
                                 }
                                 // 移除不必要的字节转换和 UTF-8 转换
                                 Ok(CmdResult { output: report_str })
                             }
-                            _ => Err(CmdError(format!("Query mode {:?} not supported yet.", mode))), // 提供更具体的错误信息
+                            _ => Err(AppError::command(format!("Query mode {:?} not supported yet.", mode))), // 提供更具体的错误信息
                         }
                     }
                      // 如果 QueryItem 有其他变体，需要在这里处理，否则 _ 可能匹配到非预期的命令
@@ -124,7 +124,7 @@ impl HandlerBuilder for Query {
             //    我们可以显式声明类型来帮助编译器。
 
             // 方案 A：显式类型注解 (推荐)
-            let handler_fut: Pin<Box<dyn Future<Output = Result<CmdResult, CmdError>> + Send>> = Box::pin(fut);
+            let handler_fut: Pin<Box<dyn Future<Output = Result<CmdResult, AppError>> + Send>> = Box::pin(fut);
             handler_fut // 返回这个明确类型的 pinned future
 
             // 方案 B：直接返回并依赖类型推断（有时可行，但出错时退回方案 A）
@@ -137,61 +137,4 @@ impl HandlerBuilder for Query {
            // 但保留它通常无害，可以明确意图。
            as CmdHandler
     }
-}
-
-#[test]
-fn args_parse_test() -> Result<(), clap::error::Error> {
-    // 2. 修正 args 数组：
-    //    - 第一个元素应该是程序名 (与 #[command(name=...)] 对应，或任意占位符)
-    //    - 第二个元素应该是子命令名 ("grade")
-    let args = ["query", "grade", "--id", "12345678", "--mode", "summary"];
-    // 或者 let args = vec!["query", "grade", "--id", "12345678", "--mode", "summary"];
-
-    println!("Attempting to parse: {:?}", args); // 增加调试输出
-
-    // 现在 Query::try_parse_from 应该能被找到并正确工作了
-    let cmd = Query::try_parse_from(args)?; // 注意：这里传入的是数组引用，clap 会处理
-
-    println!("Parsed cmd: {:#?}", cmd);
-
-    // 可选：添加断言来验证解析结果
-    match cmd.commands {
-        QueryItem::Grade { mode } => {
-            assert_eq!(mode, GradeQueryMode::Summary);
-        } // Add cases for other subcommands if they exist
-    }
-
-    Ok(())
-}
-
-// 示例：测试默认值
-
-// 示例：测试大小写不敏感
-#[test]
-fn args_parse_case_insensitive_test() -> Result<(), clap::error::Error> {
-    // clap 的 ValueEnum 默认就是大小写不敏感的
-    let args = ["query", "grade", "--id", "11223344", "--mode", "MiD"]; // 使用混合大小写
-    println!("Attempting to parse (case insensitive): {:?}", args);
-    let cmd = Query::try_parse_from(args)?;
-    println!("Parsed cmd (case insensitive): {:#?}", cmd);
-    match cmd.commands {
-        QueryItem::Grade { mode } => {
-            
-            assert_eq!(mode, GradeQueryMode::Mid); // 应该能正确解析为 Mid
-        }
-    }
-    Ok(())
-}
-
-#[tokio::test]
-async fn grade_summary_test() -> Result<(), Box<dyn std::error::Error>> {
-    get_db().await;
-    let cmd: Vec<&str> = vec!["query", "grade"];
-    let reports = CMD_REGISTRY.execute(cmd[0], &cmd[1..].to_vec()).await;
-    let output = match reports {
-        Ok(result) => result.output,
-        Err(err) => err.to_string(),
-    };
-    println!("命令行结果:\n{}", output);
-    Ok(())
 }

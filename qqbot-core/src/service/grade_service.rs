@@ -1,15 +1,18 @@
 use std::sync::Arc;
 
-use sea_orm::{DatabaseConnection, ModelTrait};
+use sea_orm::{DatabaseConnection};
 
 use crate::{
-    models::grade::{Model}, permission::check_permission, repo::{grade::GradeRepo, GradeRepository}
+    models::grade::{Model}, 
+    permission::check_permission, 
+    repo::{grade::GradeRepo, GradeRepository},
+    error::{AppError, AppResult}
 };
 
-use super::{ServiceError, StuServiceImpl, UserService};
+use super::{StuServiceImpl, UserService};
 
 pub trait GradeService {
-    fn find_grades(&self, qq: i64) -> impl std::future::Future<Output = Result<Vec<Model>,ServiceError>> + Send;
+    fn find_grades(&self, qq: i64) -> impl std::future::Future<Output = AppResult<Vec<Model>>> + Send;
 }
 
 pub struct GradeServiceImpl {
@@ -27,22 +30,17 @@ impl GradeServiceImpl {
 }
 
 impl GradeService for GradeServiceImpl {
-    async fn find_grades(&self, qq: i64) -> Result<Vec<Model>, ServiceError> {
+    async fn find_grades(&self, qq: i64) -> AppResult<Vec<Model>> {
         let ss = StuServiceImpl::new(self.db.clone());
-        if let Ok(stu) = ss.find_by_qq(qq).await  {
-            // check permission
-            if stu.qq_number!=qq && !check_permission(qq) {
-                return Err(ServiceError::new("grade", "you can't others' grades"))
-            }
-            return self
-                .repo
-                .query_grades(stu.student_id)
-                .await
-                .map_err(|err| ServiceError::new("grade", &err.to_string()));
+        
+        let stu = ss.find_by_qq(qq).await?;
+        
+        // 检查权限
+        if stu.qq_number != qq && !check_permission(qq) {
+            return Err(AppError::permission("你无法查看他人的成绩"));
         }
-        Err(ServiceError::new(
-            "grade",
-            &format!("{} not found in database", qq),
-        ))
+        
+        let grades = self.repo.query_grades(stu.student_id).await?;
+        Ok(grades)
     }
 }

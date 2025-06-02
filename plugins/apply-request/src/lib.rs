@@ -2,8 +2,8 @@ use std::time::Duration;
 
 use kovi::{
     PluginBuilder as plugin,
-    log::{log, warn},
-    tokio::{self, time::timeout},
+    log::warn,
+    tokio::time::timeout,
 };
 
 #[kovi::plugin]

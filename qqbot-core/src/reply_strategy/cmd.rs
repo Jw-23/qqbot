@@ -2,6 +2,7 @@ use super::{MessageContent, MessageContext, RelyStrategy, ReplyError};
 use crate::cmd::{CMD_REGISTRY, Execute};
 use crate::config::APPCONFIG;
 
+#[derive(Clone)]
 pub struct CommandReplyStrategy {}
 
 impl CommandReplyStrategy {
@@ -12,11 +13,12 @@ impl CommandReplyStrategy {
 
 impl RelyStrategy for CommandReplyStrategy {
     async fn reply(&self, ctx: &MessageContext) -> Result<MessageContent, ReplyError> {
-        
         match &ctx.message {
-            
             MessageContent::Text(cmd) => {
-                let args: Vec<&str> = cmd.split_whitespace().filter(|arg| !arg.trim().is_empty()).collect();
+                let args: Vec<&str> = cmd
+                    .split_whitespace()
+                    .filter(|arg| !arg.trim().is_empty())
+                    .collect();
                 let cmd = if args.len() > 0 {
                     args[0].strip_prefix(&APPCONFIG.cmd_suffix).ok_or_else(|| {
                         ReplyError(format!(
@@ -30,7 +32,7 @@ impl RelyStrategy for CommandReplyStrategy {
                         APPCONFIG.cmd_suffix
                     )));
                 }?;
-                
+
                 let mut args = args[1..].to_vec();
                 args.push("--sender");
                 let send_id = ctx.sender_id.to_string();
@@ -41,6 +43,9 @@ impl RelyStrategy for CommandReplyStrategy {
                 args.push("--env");
                 let env = ctx.env.to_string();
                 args.push(&env);
+                if ctx.group_admin {
+                    args.push("--group-admin");
+                }
                 let cmd_result = CMD_REGISTRY
                     .execute(cmd, &args)
                     .await

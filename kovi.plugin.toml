@@ -1,9 +1,9 @@
-[cmd-reply]
+[apply-request]
 enable_on_startup = true
 access_control = false
 list_mode = "WhiteList"
 
-[cmd-reply.access_list]
+[apply-request.access_list]
 friends = []
 groups = []
 
@@ -16,11 +16,11 @@ list_mode = "WhiteList"
 friends = []
 groups = []
 
-[apply-request]
+[reply]
 enable_on_startup = true
 access_control = false
 list_mode = "WhiteList"
 
-[apply-request.access_list]
+[reply.access_list]
 friends = []
 groups = []

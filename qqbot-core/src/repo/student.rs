@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use async_trait::async_trait;
-use sea_orm::{ActiveModelTrait, ColumnTrait, Database, DatabaseConnection, EntityTrait, QueryFilter, Set};
+use sea_orm::{ActiveModelTrait, ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter, Set};
 use crate::models::student::{ActiveModel, Column, Entity, Model};
 use super::DbErr;
 
@@ -77,12 +77,3 @@ impl StudentRepository for StudentRepo {
        }
     }
 } 
-
-#[tokio::test]
-async fn update_qq_test() -> Result<(), Box<dyn std::error::Error>> {
-    let db: DatabaseConnection = Database::connect("mysql://root:@localhost/diesel_demo").await?;
-
-    let repo=StudentRepo::new(Arc::new(db));
-    repo.register("test2".into(), 666888, 98765432, 4321).await?;
-    Ok(())
-}

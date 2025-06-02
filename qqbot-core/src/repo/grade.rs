@@ -3,7 +3,7 @@ use std::sync::Arc;
 use super::{DbErr, GradeRepository};
 use crate::models::grade::{ActiveModel, Column, Entity as GradeEntity, Model as GradeModel};
 use async_trait::async_trait;
-use sea_orm::{ColumnTrait, Database, DatabaseConnection, EntityTrait, QueryFilter, Set};
+use sea_orm::{ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter, Set};
 
 pub struct GradeRepo {
     db: Arc<DatabaseConnection>,
@@ -40,9 +40,10 @@ impl GradeRepository for GradeRepo {
     }
 }
 
+
 #[tokio::test]
 async fn query_grade_test() -> Result<(), Box<dyn std::error::Error>> {
-    let db: DatabaseConnection = Database::connect("mysql://root:@localhost/diesel_demo").await?;
+    let db: DatabaseConnection = sea_orm::Database::connect("mysql://root:@localhost/diesel_demo").await?;
     let repo = GradeRepo::new(Arc::new(db));
     let grades = repo.query_grades(12345678).await?;
     println!("grades is: {:#?}", grades);

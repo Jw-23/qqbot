@@ -1,5 +1,5 @@
 [workspace]
-members=["./qqbot-core","./migration", "plugins/cmd-reply", "./qqbot-cmd", "plugins/apply-request", "qqbot-derive"]
+members=["./qqbot-core","./migration", "plugins/reply", "./qqbot-cmd", "plugins/apply-request", "qqbot-derive"]
 resolver = "3"
 [workspace.dependencies]
 kovi = "0.11.10"
