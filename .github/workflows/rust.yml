@@ -48,3 +48,25 @@ jobs:
         name: qqbot-cmd
         path: target/release/qqbot-
 
+# 如果需要环境变量或配置文件
+    - name: Create config file
+      run: |
+        echo "Creating test config..."
+        # 在这里创建测试所需的配置文件
+
+# 如果需要外部服务
+    services:
+      redis:
+        image: redis
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 6379:6379
+
+# 如果需要安全扫描
+    - name: Security audit
+      run: cargo audit
+
