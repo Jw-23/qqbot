@@ -3,7 +3,6 @@ use sea_orm::entity::prelude::*;
 use sea_orm::prelude::DateTimeWithTimeZone;
 use sea_orm::sea_query::Expr;
 
-
 #[derive(Clone, Debug, PartialEq, DeriveEntityModel)]
 #[sea_orm(table_name = "student")]
 pub struct Model {
@@ -52,5 +51,3 @@ pub enum Student {
     CreatedAt,
     UpdatedAt,
 }
-
-

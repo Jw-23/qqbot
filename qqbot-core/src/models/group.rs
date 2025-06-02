@@ -24,5 +24,5 @@ impl Related<super::student::Entity> for Entity {
 pub enum Group {
     Table,
     Id,
-    GroupId
+    GroupId,
 }

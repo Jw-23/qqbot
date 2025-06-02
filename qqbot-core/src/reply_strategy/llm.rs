@@ -1,5 +1,5 @@
-use super::{MessageContent, MessageContext, RelyStrategy, ReplyError, Env};
-use crate::{config::APPCONFIG, GroupId, SessionId, UserId};
+use super::{Env, MessageContent, MessageContext, RelyStrategy, ReplyError};
+use crate::{GroupId, SessionId, UserId, config::APPCONFIG};
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
 use std::time::Duration;
@@ -60,13 +60,15 @@ impl LlmReplyStrategy {
         }
     }
 
-    async fn get_conversation_history(&self, ctx: &MessageContext, current_message: &str) -> Vec<ChatMessage> {
-        let mut messages = vec![
-            ChatMessage {
-                role: "system".to_string(),
-                content: APPCONFIG.llm.system_prompt.clone(),
-            }
-        ];
+    async fn get_conversation_history(
+        &self,
+        ctx: &MessageContext,
+        current_message: &str,
+    ) -> Vec<ChatMessage> {
+        let mut messages = vec![ChatMessage {
+            role: "system".to_string(),
+            content: APPCONFIG.llm.system_prompt.clone(),
+        }];
 
         // 根据消息环境创建会话ID
         let session_id = match &ctx.env {
@@ -85,7 +87,7 @@ impl LlmReplyStrategy {
         } else {
             vec![]
         };
-        
+
         // 将历史对话转换为ChatMessage格式
         for conv_msg in history {
             messages.push(ChatMessage {
@@ -114,7 +116,7 @@ impl LlmReplyStrategy {
         };
 
         let url = format!("{}/chat/completions", self.base_url);
-        
+
         let response = self
             .client
             .post(&url)
@@ -158,7 +160,9 @@ impl RelyStrategy for LlmReplyStrategy {
                 };
 
                 // 先记录用户消息到对话历史
-                let mut session = if let Some(existing_session) = crate::CONVERSATION_CACHE.get(&session_id).await {
+                let mut session = if let Some(existing_session) =
+                    crate::CONVERSATION_CACHE.get(&session_id).await
+                {
                     existing_session
                 } else {
                     let max_history = APPCONFIG.cache.max_conversation_history.unwrap_or(20);
@@ -175,7 +179,7 @@ impl RelyStrategy for LlmReplyStrategy {
                 };
                 session.messages.push_back(user_message);
                 session.last_activity = chrono::Utc::now();
-                
+
                 // 保持历史记录数量在限制内
                 if session.messages.len() > session.max_history {
                     session.messages.pop_front();
@@ -183,7 +187,7 @@ impl RelyStrategy for LlmReplyStrategy {
                 // 获取对话历史并调用LLM
                 let messages = self.get_conversation_history(ctx, text).await;
                 let response = self.call_llm_api(messages).await?;
-                
+
                 // 记录助手回复到对话历史
                 let assistant_message = crate::ConversationMessage {
                     role: "assistant".to_string(),
@@ -194,7 +198,7 @@ impl RelyStrategy for LlmReplyStrategy {
                 };
                 session.messages.push_back(assistant_message);
                 session.last_activity = chrono::Utc::now();
-                
+
                 // 保持历史记录数量在限制内
                 if session.messages.len() > session.max_history {
                     session.messages.pop_front();
@@ -202,15 +206,15 @@ impl RelyStrategy for LlmReplyStrategy {
 
                 // 保存会话到缓存
                 crate::CONVERSATION_CACHE.insert(session_id, session).await;
-                
+
                 Ok(MessageContent::Text(response))
             }
-            MessageContent::Image(_) => {
-                Err(ReplyError("Image messages are not supported yet".to_string()))
-            }
-            MessageContent::File(_) => {
-                Err(ReplyError("File messages are not supported yet".to_string()))
-            }
+            MessageContent::Image(_) => Err(ReplyError(
+                "Image messages are not supported yet".to_string(),
+            )),
+            MessageContent::File(_) => Err(ReplyError(
+                "File messages are not supported yet".to_string(),
+            )),
         }
     }
 }

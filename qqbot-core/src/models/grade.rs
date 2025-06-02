@@ -42,7 +42,7 @@ pub enum Grade {
     Score,
     Category,
     StudentName,
-    ExamName
+    ExamName,
 }
 
 #[derive(Iden, EnumIter)]

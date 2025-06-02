@@ -1,5 +1,5 @@
-use core::fmt;
 use crate::error::AppError;
+use core::fmt;
 
 pub mod cmd;
 pub mod llm;
@@ -9,18 +9,18 @@ pub enum Env {
     Group { group_id: i64 },
     Private,
 }
-impl fmt::Display for Env{
+impl fmt::Display for Env {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Env::Group { .. } => write!(f, "group"),
-            Env::Private => write!(f, "private")
+            Env::Private => write!(f, "private"),
         }
     }
 }
 
 #[derive(Debug, Clone)]
 pub struct FileAttachment {
-    pub name: String, 
+    pub name: String,
     pub content: Vec<u8>,
     pub mime_type: Option<String>,
 }
@@ -36,7 +36,7 @@ pub struct MessageContext {
     pub env: Env,
     pub sender_id: i64,
     pub self_id: i64,
-    pub group_admin:bool,
+    pub group_admin: bool,
     pub message: MessageContent,
     pub history: Vec<MessageContent>,
 }
@@ -65,14 +65,17 @@ impl From<AppError> for ReplyError {
 }
 
 pub trait RelyStrategy {
-    fn reply(&self, ctx: &MessageContext) -> impl std::future::Future<Output = Result<MessageContent, ReplyError>> + Send;
+    fn reply(
+        &self,
+        ctx: &MessageContext,
+    ) -> impl std::future::Future<Output = Result<MessageContent, ReplyError>> + Send;
 }
 
 #[tokio::test]
 async fn reply_message_test() -> Result<(), Box<dyn std::error::Error>> {
     use crate::config::get_db;
     use cmd::CommandReplyStrategy;
-    
+
     get_db().await;
     let mc = MessageContent::Text(vec!["/query".into(), "grade"].join(" "));
     let message_context = MessageContext {
@@ -80,7 +83,7 @@ async fn reply_message_test() -> Result<(), Box<dyn std::error::Error>> {
         sender_id: 87654321,
         self_id: 9999,
         message: mc,
-        group_admin:false,
+        group_admin: false,
         history: vec![],
     };
     let cmd_strategy = CommandReplyStrategy::new();

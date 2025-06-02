@@ -1,4 +1,3 @@
-
 use clap::Parser;
 
 use crate::{
@@ -12,7 +11,7 @@ use crate::error::AppError;
 #[derive(Debug, Clone, Parser)]
 pub struct Bind {
     #[command(flatten)]
-    pub common:CommonArgs,
+    pub common: CommonArgs,
     #[arg(long, help = "clear qq", default_value_t = false)]
     clear: bool,
     #[arg(required = false, help = "student number", default_value_t = 0)]
@@ -23,9 +22,12 @@ impl HandlerBuilder for Bind {
     fn build() -> CmdHandler {
         Box::new(move |args: Vec<String>| {
             Box::pin(async move {
-                let bind = Bind::try_parse_from(args).map_err(|err| AppError::command(err.to_string()))?;
+                let bind =
+                    Bind::try_parse_from(args).map_err(|err| AppError::command(err.to_string()))?;
                 if bind.common.env != Env::Private.to_string() {
-                    return Err(AppError::command(String::from("only used in private environment")));
+                    return Err(AppError::command(String::from(
+                        "only used in private environment",
+                    )));
                 }
                 let db = DB_GLOBAL
                     .get()
@@ -62,4 +64,3 @@ impl HandlerBuilder for Bind {
         })
     }
 }
-

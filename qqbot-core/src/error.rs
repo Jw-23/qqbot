@@ -1,6 +1,5 @@
-
-use thiserror::Error;
 use serde_json;
+use thiserror::Error;
 
 /// 统一的应用错误类型
 #[derive(Error, Debug)]
@@ -141,4 +140,3 @@ macro_rules! app_error {
         $crate::error::AppError::$kind($msg.into())
     };
 }
-

@@ -61,7 +61,8 @@ async fn main() {
                         sender_id: event.sender.user_id,
                         self_id: event.self_id,
                         message: MessageContent::Text(msg.to_string()),
-                        group_admin: event.sender.role == Some(String::from("admin")) || event.sender.role == Some(String::from("owner")),
+                        group_admin: event.sender.role == Some(String::from("admin"))
+                            || event.sender.role == Some(String::from("owner")),
                         history: vec![], // 未来可以扩展为真实的对话历史
                     };
 
@@ -80,7 +81,7 @@ async fn main() {
                         }
                         _ => "收到了不支持的回复类型".to_string(),
                     };
-                    let reply_msg=String::from(reply_msg.trim());
+                    let reply_msg = String::from(reply_msg.trim());
                     // 发送回复
                     match event.message_type.as_str() {
                         "private" => {

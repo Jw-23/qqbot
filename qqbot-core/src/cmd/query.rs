@@ -1,11 +1,11 @@
 use std::pin::Pin;
 
 // 1. 修正 use 语句：不需要 clap_derive::Parser，只需要 clap::Parser trait
-use clap::{Parser, Subcommand, ValueEnum};
 use crate::{
     config::DB_GLOBAL,
     service::grade_service::{GradeService, GradeServiceImpl},
 };
+use clap::{Parser, Subcommand, ValueEnum};
 
 use super::{CmdHandler, CmdResult, CommonArgs, HandlerBuilder}; // 移除 clap_derive::Parser
 use crate::error::AppError;
@@ -19,7 +19,7 @@ use crate::error::AppError;
 )]
 pub struct Query {
     #[command(flatten)]
-    pub common:CommonArgs,
+    pub common: CommonArgs,
     #[command(subcommand)]
     commands: QueryItem, // 子命令字段
 }
@@ -41,7 +41,6 @@ pub struct Query {
 pub enum QueryItem {
     /// the subcommand to query grade
     Grade {
-       
         /// 查询模式 (必需, 默认 Summary, 忽略大小写)
         #[arg(
             short,
@@ -74,11 +73,10 @@ impl HandlerBuilder for Query {
             let fut = async move {
                 let query = Query::try_parse_from(args).map_err(|err| AppError::command(err.to_string()))?;
                 match query.commands {
-                    QueryItem::Grade {  mode } => {
-                        let conn = DB_GLOBAL
+                    QueryItem::Grade {  mode } => {                        let conn = DB_GLOBAL
                             .get()
                             .ok_or_else(|| AppError::command(String::from("failed to connect database")))?;
-                        
+
                         let grade_repo = GradeServiceImpl::new(conn.clone()); // 确保 conn 可以 clone
                         let grades = grade_repo
                         .find_grades(query.common.sender)
@@ -91,10 +89,10 @@ impl HandlerBuilder for Query {
                                 let mut report_str = String::new();
                                 for record in grades {
                                     // 假设 record 有 student_name, exam_name, score 字段
-                                     use std::fmt::Write; // 引入 Write trait 以使用 write! 宏
-                                     // 使用 write! 宏避免多次分配 String
-                                     
-                                     write!(
+                                    use std::fmt::Write; // 引入 Write trait 以使用 write! 宏
+                                    // 使用 write! 宏避免多次分配 String
+
+                                    write!(
                                          &mut report_str,
                                          "{} 在 {} 中获得 {} 分;\n",
                                          record.student_name, record.exam_name, record.score

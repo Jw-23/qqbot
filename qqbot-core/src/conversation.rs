@@ -1,6 +1,5 @@
 use crate::{
-    SessionId, ConversationSession, ConversationMessage, CONVERSATION_CACHE,
-    config::APPCONFIG,
+    CONVERSATION_CACHE, ConversationMessage, ConversationSession, SessionId, config::APPCONFIG,
 };
 use chrono::Utc;
 
@@ -16,7 +15,9 @@ impl ConversationManager {
                 // 会话过期，创建新会话
                 let max_history = APPCONFIG.cache.max_conversation_history.unwrap_or(20);
                 let new_session = ConversationSession::new(max_history);
-                CONVERSATION_CACHE.insert(session_id.clone(), new_session.clone()).await;
+                CONVERSATION_CACHE
+                    .insert(session_id.clone(), new_session.clone())
+                    .await;
                 new_session
             } else {
                 session
@@ -25,7 +26,9 @@ impl ConversationManager {
             // 创建新会话
             let max_history = APPCONFIG.cache.max_conversation_history.unwrap_or(20);
             let new_session = ConversationSession::new(max_history);
-            CONVERSATION_CACHE.insert(session_id, new_session.clone()).await;
+            CONVERSATION_CACHE
+                .insert(session_id, new_session.clone())
+                .await;
             new_session
         }
     }
@@ -45,7 +48,10 @@ impl ConversationManager {
     }
 
     /// 获取最近的对话历史
-    pub async fn get_conversation_history(session_id: SessionId, limit: usize) -> Vec<ConversationMessage> {
+    pub async fn get_conversation_history(
+        session_id: SessionId,
+        limit: usize,
+    ) -> Vec<ConversationMessage> {
         if let Some(session) = CONVERSATION_CACHE.get(&session_id).await {
             let timeout = APPCONFIG.cache.conversation_timeout_minutes.unwrap_or(10);
             if !session.is_expired(timeout) {
@@ -62,7 +68,10 @@ impl ConversationManager {
 
     /// 获取会话的最后活动时间
     pub async fn get_last_activity(session_id: SessionId) -> Option<chrono::DateTime<Utc>> {
-        CONVERSATION_CACHE.get(&session_id).await.map(|session| session.last_activity)
+        CONVERSATION_CACHE
+            .get(&session_id)
+            .await
+            .map(|session| session.last_activity)
     }
 
     /// 清理所有过期的会话
@@ -85,13 +94,17 @@ mod tests {
     #[tokio::test]
     async fn test_conversation_manager() {
         let session_id = SessionId::Private(123456);
-        
+
         // 添加用户消息
         ConversationManager::add_user_message(session_id.clone(), "你好".to_string()).await;
-        
+
         // 添加助手回复
-        ConversationManager::add_assistant_message(session_id.clone(), "你好！有什么可以帮助你的吗？".to_string()).await;
-        
+        ConversationManager::add_assistant_message(
+            session_id.clone(),
+            "你好！有什么可以帮助你的吗？".to_string(),
+        )
+        .await;
+
         // 获取对话历史
         let history = ConversationManager::get_conversation_history(session_id.clone(), 10).await;
         assert_eq!(history.len(), 2);

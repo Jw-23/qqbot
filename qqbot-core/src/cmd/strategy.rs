@@ -1,5 +1,8 @@
 use crate::{
-    cmd::{CmdHandler, CmdResult, CommonArgs, HandlerBuilder}, config::APPCONFIG, error::AppError, StrategeType, UserData, BOT_CACHE
+    BOT_CACHE, StrategeType, UserData,
+    cmd::{CmdHandler, CmdResult, CommonArgs, HandlerBuilder},
+    config::APPCONFIG,
+    error::AppError,
 };
 use clap::Parser;
 
@@ -37,11 +40,15 @@ impl HandlerBuilder for Strategy {
                         ));
                     }
                 };
-                let default_model= &APPCONFIG.llm.model;
+                let default_model = &APPCONFIG.llm.model;
                 // 更新用户策略
                 let user_data = UserData {
                     stratege: strategy_type,
-                    model: if strategy.model.is_empty() {default_model.clone()}else{strategy.model},
+                    model: if strategy.model.is_empty() {
+                        default_model.clone()
+                    } else {
+                        strategy.model
+                    },
                 };
 
                 BOT_CACHE.insert(strategy.common.sender, user_data).await;

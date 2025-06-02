@@ -1,7 +1,7 @@
-use super::{MessageContent, MessageContext, RelyStrategy, ReplyError};
-use crate::{BOT_CACHE, StrategeType};
 use super::cmd::CommandReplyStrategy;
 use super::llm::LlmReplyStrategy;
+use super::{MessageContent, MessageContext, RelyStrategy, ReplyError};
+use crate::{BOT_CACHE, StrategeType};
 
 #[derive(Clone)]
 pub struct ReplyManager {
@@ -20,11 +20,9 @@ impl ReplyManager {
     pub async fn reply(&self, ctx: &MessageContext) -> Result<MessageContent, ReplyError> {
         // 获取用户的策略设置
         let user_data = BOT_CACHE.get(&ctx.sender_id).await.unwrap_or_default();
-        
+
         match user_data.stratege {
-            StrategeType::CmdStrategy => {
-                self.cmd_strategy.reply(ctx).await
-            }
+            StrategeType::CmdStrategy => self.cmd_strategy.reply(ctx).await,
             StrategeType::LlmStrategy => {
                 // 对于LLM策略，如果消息不是以命令前缀开头，则使用LLM回复
                 if let MessageContent::Text(text) = &ctx.message {

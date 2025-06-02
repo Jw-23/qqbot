@@ -1,9 +1,9 @@
 use std::sync::Arc;
 
+use super::DbErr;
+use crate::models::student::{ActiveModel, Column, Entity, Model};
 use async_trait::async_trait;
 use sea_orm::{ActiveModelTrait, ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter, Set};
-use crate::models::student::{ActiveModel, Column, Entity, Model};
-use super::DbErr;
 
 #[async_trait]
 pub trait StudentRepository {
@@ -12,12 +12,12 @@ pub trait StudentRepository {
         name: String,
         student_id: i64,
         qq: i64,
-        group_id: i64
+        group_id: i64,
     ) -> Result<Model, DbErr>;
-    
+
     async fn find_by_qq(&self, qq: i64) -> Result<Option<Model>, DbErr>;
-    async fn find_by_id(&self,id: i64)->Result<Option<Model>,DbErr>;
-    async fn update_qq(&self,id:i64,qq:i64)->Result<(),DbErr>;
+    async fn find_by_id(&self, id: i64) -> Result<Option<Model>, DbErr>;
+    async fn update_qq(&self, id: i64, qq: i64) -> Result<(), DbErr>;
 }
 
 pub struct StudentRepo {
@@ -37,7 +37,7 @@ impl StudentRepository for StudentRepo {
         name: String,
         student_id: i64,
         qq: i64,
-        group_id: i64
+        group_id: i64,
     ) -> Result<Model, DbErr> {
         let student = ActiveModel {
             name: Set(name),
@@ -46,7 +46,7 @@ impl StudentRepository for StudentRepo {
             group_id: Set(group_id),
             ..Default::default()
         };
-        
+
         Entity::insert(student)
             .exec_with_returning(self.db.as_ref())
             .await
@@ -58,22 +58,22 @@ impl StudentRepository for StudentRepo {
             .one(self.db.as_ref())
             .await
     }
-    async fn find_by_id(&self,id: i64)->Result<Option<Model>,DbErr>{
+    async fn find_by_id(&self, id: i64) -> Result<Option<Model>, DbErr> {
         Entity::find()
-        .filter(Column::StudentId.eq(id))
-        .one(self.db.as_ref())
-        .await
+            .filter(Column::StudentId.eq(id))
+            .one(self.db.as_ref())
+            .await
     }
-    async fn update_qq(&self,id:i64,qq:i64)->Result<(),DbErr>{
-       match self.find_by_id(id).await {
-            Ok(Some(stu))=> {
-              let mut active:ActiveModel = stu.into();
-                active.qq_number=Set(qq);
+    async fn update_qq(&self, id: i64, qq: i64) -> Result<(), DbErr> {
+        match self.find_by_id(id).await {
+            Ok(Some(stu)) => {
+                let mut active: ActiveModel = stu.into();
+                active.qq_number = Set(qq);
                 active.update(self.db.as_ref()).await?;
                 Ok(())
-            },
-            Err(err)=>Err(err),
-            _=> Err(DbErr::Custom("not defined behavior".into()))   
-       }
+            }
+            Err(err) => Err(err),
+            _ => Err(DbErr::Custom("not defined behavior".into())),
+        }
     }
-} 
+}

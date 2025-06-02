@@ -7,13 +7,13 @@ pub struct AppConfig {
     pub logging_level: log::LevelFilter,
     pub cmd_suffix: String,
     pub database: DatabaseConfig,
-    pub cache:CacheConfig,
-    pub admins:Vec<i64>,
+    pub cache: CacheConfig,
+    pub admins: Vec<i64>,
     pub llm: LlmConfig,
 }
 
-#[derive(Debug,Deserialize)]
-pub struct CacheConfig{
+#[derive(Debug, Deserialize)]
+pub struct CacheConfig {
     pub cache_capacity: u64,
     #[serde(with = "humantime_serde")]
     pub cache_lifetime: Duration,
