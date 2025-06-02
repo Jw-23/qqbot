@@ -35,16 +35,22 @@ async fn main() {
                         // 命令模式只响应命令消息
                         msg.starts_with(&APPCONFIG.cmd_suffix)
                     }
-                    StrategeType::LlmStrategy => event.message.iter().any(|m| {
-                        m.type_ == "at"
-                            && m.data
-                                .get("qq")
-                                .and_then(|v| v.as_i64())
-                                .map(|qq| qq == event.self_id)
-                                .unwrap_or(false)
-                    }),
+                    StrategeType::LlmStrategy => {
+                        if event.message_type == "private" {
+                            true
+                        } else {
+                            event.message.iter().any(|m| {
+                                m.type_ == "at"
+                                    && m.data
+                                        .get("qq")
+                                        .and_then(|v| v.as_str())
+                                        .map(|qq| qq == event.self_id.to_string())
+                                        .unwrap_or(false)
+                            })
+                        }
+                    }
                 };
-
+                
                 if should_respond {
                     let env = if event.message_type == "private" {
                         Env::Private
