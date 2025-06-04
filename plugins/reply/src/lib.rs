@@ -1,9 +1,9 @@
 use kovi::PluginBuilder as plugin;
 use qqbot_core::{
-    BOT_CACHE, StrategeType, SessionId,
+    BOT_CACHE, SessionId, StrategeType,
     config::{APPCONFIG, get_db},
-    reply_strategy::{Env, MessageContent, MessageContext, reply_manager::ReplyManager},
     conversation::ConversationManager,
+    reply_strategy::{Env, MessageContent, MessageContext, reply_manager::ReplyManager},
     service::group_config_service::GROUP_CACHE,
 };
 
@@ -91,7 +91,9 @@ async fn main() {
                 // 消息捕获逻辑：在LLM策略下自动捕获消息到对话历史
                 let should_capture = match strategy {
                     StrategeType::LlmStrategy => {
-                        if event.message_type == "group" && APPCONFIG.llm.auto_capture_group_messages {
+                        if event.message_type == "group"
+                            && APPCONFIG.llm.auto_capture_group_messages
+                        {
                             true
                         } else if event.message_type == "private" {
                             true
@@ -122,11 +124,14 @@ async fn main() {
                     };
 
                     let username = match env {
-                        Env::Group { .. } => {
-                            event.sender.nickname.clone()
-                                .unwrap_or_else(|| format!("用户{}", event.sender.user_id))
-                        }
-                        Env::Private => format!("用户{}", event.sender.user_id),
+                        Env::Group { .. } => event
+                            .sender
+                            .card
+                            .clone()
+                            .or(event.sender.nickname.clone())
+                            .unwrap_or_else(|| format!("用户{}", event.sender.user_id)),
+                        Env::Private => event.sender.nickname.clone()
+                            .unwrap_or_else(|| format!("用户{}", event.sender.user_id)),
                     };
 
                     ConversationManager::add_user_message_with_info(
@@ -137,9 +142,10 @@ async fn main() {
                             Env::Group { .. } => Some(username),
                             Env::Private => None,
                         },
-                    ).await;
+                    )
+                    .await;
                 }
-                
+
                 if should_respond {
                     let env = if event.message_type == "private" {
                         Env::Private
@@ -163,7 +169,10 @@ async fn main() {
                         group_admin: event.sender.role == Some(String::from("admin"))
                             || event.sender.role == Some(String::from("owner")),
                         history: vec![], // 未来可以扩展为真实的对话历史
-                        sender_name: event.sender.card.clone()
+                        sender_name: event
+                            .sender
+                            .card
+                            .clone()
                             .or_else(|| event.sender.nickname.clone())
                             .or_else(|| Some(format!("用户{}", event.sender.user_id))),
                     };
