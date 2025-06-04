@@ -1,9 +1,10 @@
 use kovi::PluginBuilder as plugin;
 use qqbot_core::{
-    BOT_CACHE, StrategeType, UserData, SessionId,
+    BOT_CACHE, StrategeType, SessionId,
     config::{APPCONFIG, get_db},
     reply_strategy::{Env, MessageContent, MessageContext, reply_manager::ReplyManager},
     conversation::ConversationManager,
+    service::group_config_service::GROUP_CACHE,
 };
 
 #[kovi::plugin]
@@ -20,65 +21,89 @@ async fn main() {
         async move {
             let sender = event.sender.user_id;
 
-            // 获取或创建用户数据
-            let data = if let Some(user_data) = BOT_CACHE.get(&sender).await {
-                user_data
+            // 根据消息环境获取有效配置（群组优先或用户配置）
+            let effective_config = if event.message_type == "group" {
+                // 群聊环境：优先使用群组配置，如果没有则使用用户配置
+                if let Some(group_id) = event.group_id {
+                    if let Some(group_data) = GROUP_CACHE.get(&group_id).await {
+                        // 使用群组配置
+                        (group_data.stratege, group_data.custom_prompt)
+                    } else {
+                        // 群组没有配置，使用用户配置
+                        let user_data = BOT_CACHE.get(&sender).await.unwrap_or_default();
+                        (user_data.stratege, user_data.custom_prompt)
+                    }
+                } else {
+                    // 没有群组ID，使用用户配置
+                    let user_data = BOT_CACHE.get(&sender).await.unwrap_or_default();
+                    (user_data.stratege, user_data.custom_prompt)
+                }
             } else {
-                BOT_CACHE.insert(sender, UserData::default()).await;
-                UserData::default()
+                // 私聊环境：使用用户配置
+                let user_data = BOT_CACHE.get(&sender).await.unwrap_or_default();
+                (user_data.stratege, user_data.custom_prompt)
             };
+
+            let (strategy, _custom_prompt) = effective_config;
 
             // 处理消息
             if let Some(msg) = event.borrow_text() {
-                
-                
-                // 检查是否应该响应这条消息
-                let should_respond = match data.stratege {
-                    StrategeType::CmdStrategy => {
-                        // 命令模式只响应命令消息
-                        msg.starts_with(&APPCONFIG.cmd_suffix)
+                // 检查是否被@了（仅在群聊中有效）
+                let is_mentioned = if event.message_type == "group" {
+                    event.message.iter().any(|m| {
+                        m.type_ == "at"
+                            && m.data
+                                .get("qq")
+                                .and_then(|v| v.as_str())
+                                .map(|qq| qq == event.self_id.to_string())
+                                .unwrap_or(false)
+                    })
+                } else {
+                    false // 私聊不需要@
+                };
+
+                // 新的智能响应逻辑
+                let should_respond = if event.message_type == "private" {
+                    // 私聊：根据策略决定
+                    match strategy {
+                        StrategeType::CmdStrategy => msg.starts_with(&APPCONFIG.cmd_suffix),
+                        StrategeType::LlmStrategy => true,
                     }
-                    StrategeType::LlmStrategy => {
-                        if event.message_type == "private" {
-                            true
+                } else {
+                    // 群聊：必须被@才考虑响应
+                    if is_mentioned {
+                        // 被@了，根据消息内容决定
+                        if msg.starts_with(&APPCONFIG.cmd_suffix) {
+                            // 以命令前缀开头：按策略处理
+                            match strategy {
+                                StrategeType::CmdStrategy => true,
+                                StrategeType::LlmStrategy => true, // LLM模式下命令也处理
+                            }
                         } else {
-                            // 群聊中，只有被@时才回复
-                            event.message.iter().any(|m| {
-                                m.type_ == "at"
-                                    && m.data
-                                        .get("qq")
-                                        .and_then(|v| v.as_str())
-                                        .map(|qq| qq == event.self_id.to_string())
-                                        .unwrap_or(false)
-                            })
+                            // 不以命令前缀开头：强制使用LLM
+                            true
                         }
+                    } else {
+                        false // 没被@，不响应
                     }
                 };
 
-                // 在LLM模式下，如果开启了自动捕获群聊消息，需要将所有群聊消息添加到对话历史中
-                let should_capture = match data.stratege {
+                // 消息捕获逻辑：在LLM策略下自动捕获消息到对话历史
+                let should_capture = match strategy {
                     StrategeType::LlmStrategy => {
                         if event.message_type == "group" && APPCONFIG.llm.auto_capture_group_messages {
-                            
                             true
                         } else if event.message_type == "private" {
-                            
                             true
                         } else {
-                            
                             false
                         }
                     }
-                    _ => {
-                        
-                        false
-                    }
+                    _ => false,
                 };
 
                 // 捕获消息到对话历史（只在不回复时捕获，避免重复）
                 if should_capture && !should_respond {
-                    println!("💾 保存消息到对话历史: should_capture={}, should_respond={}", 
-                        should_capture, should_respond);
                     let env = if event.message_type == "private" {
                         Env::Private
                     } else if event.message_type == "group" {
@@ -91,7 +116,6 @@ async fn main() {
                         Env::Private
                     };
 
-                    // 只记录消息到对话历史，不生成回复
                     let session_id = match env {
                         Env::Private => SessionId::Private(event.sender.user_id),
                         Env::Group { group_id } => SessionId::Group(group_id),
@@ -105,7 +129,6 @@ async fn main() {
                         Env::Private => format!("用户{}", event.sender.user_id),
                     };
 
-                    // 使用 ConversationManager 添加用户消息
                     ConversationManager::add_user_message_with_info(
                         session_id,
                         msg.to_string(),

@@ -1,5 +1,5 @@
 use super::{Env, MessageContent, MessageContext, RelyStrategy, ReplyError};
-use crate::{GroupId, SessionId, UserId, config::APPCONFIG, service::user_config_service::UserConfigService};
+use crate::{GroupId, SessionId, UserId, config::APPCONFIG, service::user_config_service::UserConfigService, service::group_config_service::GroupConfigService};
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
 use std::time::Duration;
@@ -108,19 +108,47 @@ impl LlmReplyStrategy {
         messages
     }
 
-    async fn get_user_custom_prompt(&self, user_id: UserId) -> Result<Option<String>, ReplyError> {
+    async fn get_custom_prompt(&self, ctx: &MessageContext) -> Result<Option<String>, ReplyError> {
         // 连接数据库
         let database_url = &APPCONFIG.database.url;
         let db = Database::connect(database_url).await
             .map_err(|e| ReplyError(format!("数据库连接失败: {}", e)))?;
         
-        // 获取用户配置服务
-        let user_config_service = UserConfigService::new(db);
-        
-        // 获取用户数据
-        match user_config_service.get_user_data(user_id).await {
-            Ok(user_data) => Ok(user_data.custom_prompt),
-            Err(_) => Ok(None), // 如果获取失败，返回None使用默认提示词
+        match &ctx.env {
+            Env::Group { group_id } => {
+                // 群聊环境：优先使用群组配置，如果没有则使用用户配置
+                let group_config_service = GroupConfigService::new(db.clone());
+                match group_config_service.get_group_data(*group_id).await {
+                    Ok(group_data) => {
+                        if group_data.custom_prompt.is_some() {
+                            Ok(group_data.custom_prompt)
+                        } else {
+                            // 群组没有自定义提示词，使用用户配置
+                            let user_config_service = UserConfigService::new(db);
+                            match user_config_service.get_user_data(ctx.sender_id).await {
+                                Ok(user_data) => Ok(user_data.custom_prompt),
+                                Err(_) => Ok(None),
+                            }
+                        }
+                    }
+                    Err(_) => {
+                        // 群组配置获取失败，使用用户配置
+                        let user_config_service = UserConfigService::new(db);
+                        match user_config_service.get_user_data(ctx.sender_id).await {
+                            Ok(user_data) => Ok(user_data.custom_prompt),
+                            Err(_) => Ok(None),
+                        }
+                    }
+                }
+            }
+            Env::Private => {
+                // 私聊环境：使用用户配置
+                let user_config_service = UserConfigService::new(db);
+                match user_config_service.get_user_data(ctx.sender_id).await {
+                    Ok(user_data) => Ok(user_data.custom_prompt),
+                    Err(_) => Ok(None),
+                }
+            }
         }
     }
 
@@ -178,8 +206,8 @@ impl RelyStrategy for LlmReplyStrategy {
                     Env::Group { group_id, .. } => SessionId::Group(*group_id as GroupId),
                 };
 
-                // 获取用户配置以获取自定义提示词
-                let user_custom_prompt = match self.get_user_custom_prompt(ctx.sender_id as UserId).await {
+                // 获取自定义提示词（群组优先或用户配置）
+                let custom_prompt = match self.get_custom_prompt(ctx).await {
                     Ok(prompt) => prompt,
                     Err(_) => None, // 如果获取失败，使用默认提示词
                 };
@@ -204,7 +232,7 @@ impl RelyStrategy for LlmReplyStrategy {
                 ).await;
 
                 // 获取对话历史（包含刚刚添加的当前消息）
-                let messages = self.get_conversation_history(ctx, session_id.clone(), user_custom_prompt).await;
+                let messages = self.get_conversation_history(ctx, session_id.clone(), custom_prompt).await;
                 let response = self.call_llm_api(messages).await?;
 
                 // 记录助手回复到对话历史

@@ -145,6 +145,26 @@ impl std::default::Default for UserData {
         }
     }
 }
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct GroupData {
+    pub stratege: StrategeType,
+    #[serde(default)]
+    pub model: String,
+    #[serde(default)]
+    pub custom_prompt: Option<String>,
+}
+
+impl std::default::Default for GroupData {
+    fn default() -> Self {
+        Self {
+            stratege: Default::default(),
+            model: String::from(""),
+            custom_prompt: None,
+        }
+    }
+}
+
 pub static BOT_CACHE: Lazy<Cache<UserId, UserData>> = Lazy::new(|| {
     Cache::builder()
         .max_capacity(APPCONFIG.cache.cache_capacity)

@@ -19,6 +19,8 @@ pub struct CommonArgs {
     sender: i64,
     #[arg(long, global = true, required = false, help = "self id(auto)")]
     myself: i64,
+    #[arg(long, global = true, required = false, help = "group id(auto)", default_value_t = 0)]
+    group_id: i64,
     #[arg(long,global = true,required = false, help = "env private, group(auto)",default_value_t=String::from("private"))]
     env: String,
     #[arg(

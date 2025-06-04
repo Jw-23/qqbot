@@ -5,6 +5,7 @@ mod m20250421_140838_add_grade_category;
 mod m20250422_103936_add_student_id_name;
 mod m20250426_144818_alter_integer;
 mod m20250604_000001_create_user_config;
+mod m20250604_000002_create_group_config;
 
 pub struct Migrator;
 
@@ -17,6 +18,7 @@ impl MigratorTrait for Migrator {
             Box::new(m20250422_103936_add_student_id_name::Migration),
             Box::new(m20250426_144818_alter_integer::Migration),
             Box::new(m20250604_000001_create_user_config::Migration),
+            Box::new(m20250604_000002_create_group_config::Migration),
         ]
     }
 }

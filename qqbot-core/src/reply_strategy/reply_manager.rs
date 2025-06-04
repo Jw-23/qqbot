@@ -1,7 +1,8 @@
 use super::cmd::CommandReplyStrategy;
 use super::llm::LlmReplyStrategy;
-use super::{MessageContent, MessageContext, RelyStrategy, ReplyError};
+use super::{MessageContent, MessageContext, RelyStrategy, ReplyError, Env};
 use crate::{BOT_CACHE, StrategeType};
+use crate::service::group_config_service::GROUP_CACHE;
 
 #[derive(Clone)]
 pub struct ReplyManager {
@@ -18,10 +19,24 @@ impl ReplyManager {
     }
 
     pub async fn reply(&self, ctx: &MessageContext) -> Result<MessageContent, ReplyError> {
-        // 获取用户的策略设置
-        let user_data = BOT_CACHE.get(&ctx.sender_id).await.unwrap_or_default();
+        // 根据环境获取有效配置（群组优先或用户配置）
+        let strategy = match &ctx.env {
+            Env::Group { group_id } => {
+                // 群聊环境：优先使用群组配置，如果没有则使用用户配置
+                if let Some(group_data) = GROUP_CACHE.get(group_id).await {
+                    group_data.stratege
+                } else {
+                    // 群组没有配置，使用用户配置
+                    BOT_CACHE.get(&ctx.sender_id).await.unwrap_or_default().stratege
+                }
+            }
+            Env::Private => {
+                // 私聊环境：使用用户配置
+                BOT_CACHE.get(&ctx.sender_id).await.unwrap_or_default().stratege
+            }
+        };
 
-        match user_data.stratege {
+        match strategy {
             StrategeType::CmdStrategy => self.cmd_strategy.reply(ctx).await,
             StrategeType::LlmStrategy => {
                 // 对于LLM策略，如果消息不是以命令前缀开头，则使用LLM回复
