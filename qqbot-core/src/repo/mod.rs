@@ -23,3 +23,4 @@ pub trait GradeRepository {
 
 pub mod grade;
 pub mod student;
+pub mod user_config;

@@ -16,6 +16,7 @@ async fn main() {
             println!("❌ 错误！默认策略仍为命令模式 (CmdStrategy)");
         }
     }
+    let mut arr=vec![6,3,2,4,9,1,7];
     
     // 测试策略类型的默认值
     let default_strategy = StrategeType::default();

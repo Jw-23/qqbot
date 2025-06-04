@@ -30,8 +30,7 @@ async fn main() {
 
             // 处理消息
             if let Some(msg) = event.borrow_text() {
-                println!("📨 收到消息: 用户{} 在{:?} 发送: {} (策略: {:?})", 
-                    event.sender.user_id, event.message_type, msg, data.stratege);
+                
                 
                 // 检查是否应该响应这条消息
                 let should_respond = match data.stratege {
@@ -60,27 +59,21 @@ async fn main() {
                 let should_capture = match data.stratege {
                     StrategeType::LlmStrategy => {
                         if event.message_type == "group" && APPCONFIG.llm.auto_capture_group_messages {
-                            println!("🔍 群聊消息捕获: 用户{} 在群{:?} 发送: {} (auto_capture={})", 
-                                event.sender.user_id, event.group_id, msg, APPCONFIG.llm.auto_capture_group_messages);
+                            
                             true
                         } else if event.message_type == "private" {
-                            println!("🔍 私聊消息捕获: 用户{} 发送: {}", 
-                                event.sender.user_id, msg);
+                            
                             true
                         } else {
-                            println!("🚫 不捕获消息: 消息类型={}, LLM自动捕获={}", 
-                                event.message_type, APPCONFIG.llm.auto_capture_group_messages);
+                            
                             false
                         }
                     }
                     _ => {
-                        println!("🚫 不捕获消息: 策略类型={:?}", data.stratege);
+                        
                         false
                     }
                 };
-
-                println!("📊 消息处理状态: should_capture={}, should_respond={}", 
-                    should_capture, should_respond);
 
                 // 捕获消息到对话历史（只在不回复时捕获，避免重复）
                 if should_capture && !should_respond {

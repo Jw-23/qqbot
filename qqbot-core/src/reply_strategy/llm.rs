@@ -1,8 +1,9 @@
 use super::{Env, MessageContent, MessageContext, RelyStrategy, ReplyError};
-use crate::{GroupId, SessionId, UserId, config::APPCONFIG};
+use crate::{GroupId, SessionId, UserId, config::APPCONFIG, service::user_config_service::UserConfigService};
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
 use std::time::Duration;
+use sea_orm::Database;
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct ChatMessage {
@@ -64,10 +65,12 @@ impl LlmReplyStrategy {
         &self,
         ctx: &MessageContext,
         session_id: SessionId,
+        custom_prompt: Option<String>,
     ) -> Vec<ChatMessage> {
+        let system_prompt = custom_prompt.unwrap_or_else(|| APPCONFIG.llm.system_prompt.clone());
         let mut messages = vec![ChatMessage {
             role: "system".to_string(),
-            content: APPCONFIG.llm.system_prompt.clone(),
+            content: system_prompt,
         }];
 
         // 获取历史对话 - 使用 ConversationManager 简化逻辑
@@ -103,6 +106,22 @@ impl LlmReplyStrategy {
         }
 
         messages
+    }
+
+    async fn get_user_custom_prompt(&self, user_id: UserId) -> Result<Option<String>, ReplyError> {
+        // 连接数据库
+        let database_url = &APPCONFIG.database.url;
+        let db = Database::connect(database_url).await
+            .map_err(|e| ReplyError(format!("数据库连接失败: {}", e)))?;
+        
+        // 获取用户配置服务
+        let user_config_service = UserConfigService::new(db);
+        
+        // 获取用户数据
+        match user_config_service.get_user_data(user_id).await {
+            Ok(user_data) => Ok(user_data.custom_prompt),
+            Err(_) => Ok(None), // 如果获取失败，返回None使用默认提示词
+        }
     }
 
     async fn call_llm_api(&self, messages: Vec<ChatMessage>) -> Result<String, ReplyError> {
@@ -159,6 +178,12 @@ impl RelyStrategy for LlmReplyStrategy {
                     Env::Group { group_id, .. } => SessionId::Group(*group_id as GroupId),
                 };
 
+                // 获取用户配置以获取自定义提示词
+                let user_custom_prompt = match self.get_user_custom_prompt(ctx.sender_id as UserId).await {
+                    Ok(prompt) => prompt,
+                    Err(_) => None, // 如果获取失败，使用默认提示词
+                };
+
                 // 先记录用户消息到对话历史，使用统一的用户名格式
                 let username = match &ctx.env {
                     Env::Group { .. } => {
@@ -179,7 +204,7 @@ impl RelyStrategy for LlmReplyStrategy {
                 ).await;
 
                 // 获取对话历史（包含刚刚添加的当前消息）
-                let messages = self.get_conversation_history(ctx, session_id.clone()).await;
+                let messages = self.get_conversation_history(ctx, session_id.clone(), user_custom_prompt).await;
                 let response = self.call_llm_api(messages).await?;
 
                 // 记录助手回复到对话历史

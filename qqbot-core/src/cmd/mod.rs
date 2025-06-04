@@ -1,6 +1,7 @@
 pub mod bind;
 pub mod query;
 pub mod strategy;
+
 use bind::Bind;
 use once_cell::sync::Lazy;
 use query::Query;
@@ -41,7 +42,7 @@ type CmdHandler = Box<
         + Send,
 >;
 
-trait HandlerBuilder {
+pub trait HandlerBuilder {
     fn build() -> CmdHandler;
 }
 

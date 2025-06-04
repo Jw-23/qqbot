@@ -3,6 +3,12 @@ name = "reply"
 version = "0.1.0"
 edition = "2024"
 
+[[example]]
+name = "test_message_capture"
+path = "examples/test_message_capture.rs"
+
 [dependencies]
 kovi.workspace = true
 qqbot-core = { path = "../../qqbot-core" }
+tokio = "1.0"
+chrono = "0.4"

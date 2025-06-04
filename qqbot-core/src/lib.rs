@@ -116,7 +116,7 @@ impl SessionId {
     }
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, Copy)]
+#[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq)]
 #[serde(rename_all = "snake_case")]
 pub enum StrategeType {
     CmdStrategy,
@@ -133,12 +133,15 @@ pub struct UserData {
     pub stratege: StrategeType,
     #[serde(default)]
     pub model: String,
+    #[serde(default)]
+    pub custom_prompt: Option<String>,
 }
 impl std::default::Default for UserData {
     fn default() -> Self {
         Self {
             stratege: Default::default(),
             model: String::from(""),
+            custom_prompt: None,
         }
     }
 }
