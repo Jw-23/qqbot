@@ -1,4 +1,4 @@
-use super::{MessageContent, MessageContext, RelyStrategy, ReplyError};
+use super::{MessageContent, MessageContext, RelyStrategy, ReplyError, Env};
 use crate::cmd::{CMD_REGISTRY, Execute};
 use crate::config::APPCONFIG;
 
@@ -43,6 +43,15 @@ impl RelyStrategy for CommandReplyStrategy {
                 args.push("--env");
                 let env = ctx.env.to_string();
                 args.push(&env);
+                
+                // 添加群组ID参数（如果是群聊环境）
+                let group_id_str;
+                if let Env::Group { group_id } = &ctx.env {
+                    args.push("--group-id");
+                    group_id_str = group_id.to_string();
+                    args.push(&group_id_str);
+                }
+                
                 if ctx.group_admin {
                     args.push("--group-admin");
                 }

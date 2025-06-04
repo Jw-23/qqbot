@@ -50,7 +50,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     }
     
     println!("\n2️⃣ 测试管理员设置群组LLM模式和自定义提示词");
-    println!("-" .repeat(40));
+    println!("{}", "-".repeat(40));
     
     // 管理员设置群组为LLM模式并设置自定义提示词
     let admin_set_args = vec![
@@ -75,7 +75,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("✅ 群组配置验证通过");
     
     println!("\n3️⃣ 测试查询群组配置");
-    println!("-" .repeat(40));
+    println!("{}", "-".repeat(40));
     
     let query_args = vec![
         "--sender", admin_id_str.as_str(),
@@ -90,7 +90,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("群组配置查询结果:\n{}", result.output);
     
     println!("\n4️⃣ 测试用户个人配置不受群组配置影响");
-    println!("-" .repeat(40));
+    println!("{}", "-".repeat(40));
     
     // 设置用户个人配置
     let user_set_args = vec![
@@ -125,7 +125,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("✅ 用户配置和群组配置相互独立");
     
     println!("\n5️⃣ 测试重置群组提示词");
-    println!("-" .repeat(40));
+    println!("{}", "-".repeat(40));
     
     let reset_args = vec![
         "--sender", admin_id_str.as_str(),
@@ -146,7 +146,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("✅ 群组提示词重置成功");
     
     println!("\n6️⃣ 测试切换群组到命令模式");
-    println!("-" .repeat(40));
+    println!("{}", "-".repeat(40));
     
     let cmd_args = vec![
         "--sender", admin_id_str.as_str(),
@@ -169,7 +169,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let _ = group_service.delete_group_config(test_group_id).await;
     
     println!("\n🎉 所有测试通过！群组配置系统功能完整正常！");
-    println!("=" .repeat(50));
+    println!("{}", "=".repeat(50));
     
     Ok(())
 }
