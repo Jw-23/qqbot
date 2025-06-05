@@ -45,7 +45,6 @@ pub struct LlmReplyStrategy {
     client: Client,
     api_key: String,
     base_url: String,
-    model: String,
 }
 
 impl LlmReplyStrategy {
@@ -57,7 +56,6 @@ impl LlmReplyStrategy {
                 .expect("Failed to create HTTP client"),
             api_key: APPCONFIG.llm.api_key.clone(),
             base_url: APPCONFIG.llm.base_url.clone(),
-            model: APPCONFIG.llm.model.clone(),
         }
     }
 
@@ -152,9 +150,71 @@ impl LlmReplyStrategy {
         }
     }
 
-    async fn call_llm_api(&self, messages: Vec<ChatMessage>) -> Result<String, ReplyError> {
+    async fn get_model_name(&self, ctx: &MessageContext) -> Result<String, ReplyError> {
+        // 连接数据库
+        let database_url = &APPCONFIG.database.url;
+        let db = Database::connect(database_url).await
+            .map_err(|e| ReplyError(format!("数据库连接失败: {}", e)))?;
+        
+        match &ctx.env {
+            Env::Group { group_id } => {
+                // 群聊环境：优先使用群组配置，如果没有则使用用户配置，最后使用默认配置
+                let group_config_service = GroupConfigService::new(db.clone());
+                match group_config_service.get_group_data(*group_id).await {
+                    Ok(group_data) => {
+                        if !group_data.model.is_empty() {
+                            Ok(group_data.model)
+                        } else {
+                            // 群组没有设置模型，使用用户配置
+                            let user_config_service = UserConfigService::new(db);
+                            match user_config_service.get_user_data(ctx.sender_id).await {
+                                Ok(user_data) => {
+                                    if !user_data.model.is_empty() {
+                                        Ok(user_data.model)
+                                    } else {
+                                        Ok(APPCONFIG.llm.model.clone())
+                                    }
+                                }
+                                Err(_) => Ok(APPCONFIG.llm.model.clone()),
+                            }
+                        }
+                    }
+                    Err(_) => {
+                        // 群组配置获取失败，使用用户配置
+                        let user_config_service = UserConfigService::new(db);
+                        match user_config_service.get_user_data(ctx.sender_id).await {
+                            Ok(user_data) => {
+                                if !user_data.model.is_empty() {
+                                    Ok(user_data.model)
+                                } else {
+                                    Ok(APPCONFIG.llm.model.clone())
+                                }
+                            }
+                            Err(_) => Ok(APPCONFIG.llm.model.clone()),
+                        }
+                    }
+                }
+            }
+            Env::Private => {
+                // 私聊环境：使用用户配置，如果没有则使用默认配置
+                let user_config_service = UserConfigService::new(db);
+                match user_config_service.get_user_data(ctx.sender_id).await {
+                    Ok(user_data) => {
+                        if !user_data.model.is_empty() {
+                            Ok(user_data.model)
+                        } else {
+                            Ok(APPCONFIG.llm.model.clone())
+                        }
+                    }
+                    Err(_) => Ok(APPCONFIG.llm.model.clone()),
+                }
+            }
+        }
+    }
+
+    async fn call_llm_api(&self, messages: Vec<ChatMessage>, model: String) -> Result<String, ReplyError> {
         let request = ChatRequest {
-            model: self.model.clone(),
+            model,
             messages,
             temperature: APPCONFIG.llm.temperature,
             max_tokens: Some(APPCONFIG.llm.max_tokens),
@@ -212,6 +272,12 @@ impl RelyStrategy for LlmReplyStrategy {
                     Err(_) => None, // 如果获取失败，使用默认提示词
                 };
 
+                // 获取模型名称（群组优先或用户配置）
+                let model_name = match self.get_model_name(ctx).await {
+                    Ok(model) => model,
+                    Err(_) => APPCONFIG.llm.model.clone(), // 如果获取失败，使用默认模型
+                };
+
                 // 先记录用户消息到对话历史，使用统一的用户名格式
                 let username = match &ctx.env {
                     Env::Group { .. } => {
@@ -233,7 +299,7 @@ impl RelyStrategy for LlmReplyStrategy {
 
                 // 获取对话历史（包含刚刚添加的当前消息）
                 let messages = self.get_conversation_history(ctx, session_id.clone(), custom_prompt).await;
-                let response = self.call_llm_api(messages).await?;
+                let response = self.call_llm_api(messages, model_name).await?;
 
                 // 记录助手回复到对话历史
                 crate::conversation::ConversationManager::add_assistant_message(

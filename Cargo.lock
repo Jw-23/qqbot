@@ -1694,18 +1694,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "kovi-plugin-siliconflow"
-version = "0.1.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "60db9be594d4e3c9753b2bb3a0f9bcb3919a700b1f29c6173e12776f27490b98"
-dependencies = [
- "kovi",
- "lazy_static",
- "reqwest",
- "serde",
-]
-
-[[package]]
 name = "kv-log-macro"
 version = "1.0.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2354,7 +2342,6 @@ version = "0.1.0"
 dependencies = [
  "apply-request",
  "kovi",
- "kovi-plugin-siliconflow",
  "reply",
 ]
 
