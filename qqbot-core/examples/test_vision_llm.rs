@@ -70,8 +70,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("\n✓ 图片信息捕获和处理功能测试完成");
     println!("✓ 消息可以正确传递给支持视觉的大模型");
     
-    // 如果配置了有效的LLM API，可以取消注释下面的代码进行真实测试
+    // 如果配置了有效的LLM API，可以创建策略进行真实测试
     /*
+    use qqbot_core::reply_strategy::{SimpleLlmReplyStrategy, RelyStrategy};
+    let llm_strategy = SimpleLlmReplyStrategy::new();
     match llm_strategy.reply(&message_context).await {
         Ok(MessageContent::Text(response)) => {
             println!("\nLLM 回复: {}", response);
