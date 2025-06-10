@@ -4,7 +4,7 @@ admins = []
 [cache]
 cache_lifetime = "10min"
 cache_capacity = 2000
-cache_idletime = "5min"
+cache_idletime = "10min"
 # 对话缓存配置
 conversation_capacity = 1000
 max_conversation_history = 20
@@ -19,11 +19,13 @@ max_lifetime = "5min"
 sqlx_logging = true
 
 [llm]
-api_key = "sk-udkqihdxqvkeafrxezzkqjlnyimcwjnsrhyppmxzxgionesv"
+api_key = "sk-akbgkfdiunnxjcfhfeylqpezsrbzlpgkeedmqmgwaoaxnldo"
 base_url = "https://api.siliconflow.cn/v1"
-model = "deepseek-ai/DeepSeek-R1-Distill-Qwen-14B"
+model = "Qwen/Qwen2-VL-72B-Instruct"
 system_prompt = "你是一个友好的QQ机器人助手，请用简洁、有用的方式回复用户的问题。"
 temperature = 0.7
 max_tokens = 2048
 top_p = 0.95
 timeout_seconds = 30
+# 是否自动捕获群聊中的所有消息（不需要@机器人）
+auto_capture_group_messages = true

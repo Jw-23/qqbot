@@ -11,7 +11,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // 模拟一个包含图片的消息
     let image_info = ImageInfo {
         file: "cat.jpg".to_string(),
-        url: Some("https://example.com/cat.jpg".to_string()), // 模拟图片URL
+        url: Some("https://res.hc-cdn.com/smb-console/25.5.10/hws/images/instance/product-ecs.png".to_string()), // 模拟图片URL
         summary: Some("一只可爱的猫咪".to_string()),
         sub_type: Some(0), // JPEG
         file_size: Some(2048),
