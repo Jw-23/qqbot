@@ -19,7 +19,7 @@ max_lifetime = "5min"
 sqlx_logging = true
 
 [llm]
-api_key = "sk-akbgkfdiunnxjcfhfeylqpezsrbzlpgkeedmqmgwaoaxnldo"
+api_key = "sk-"
 base_url = "https://api.siliconflow.cn/v1"
 model = "Qwen/Qwen2-VL-72B-Instruct"
 system_prompt = "你是一个友好的QQ机器人助手，请用简洁、有用的方式回复用户的问题。"
