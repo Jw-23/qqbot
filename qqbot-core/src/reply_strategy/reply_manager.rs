@@ -1,5 +1,5 @@
 use super::cmd::CommandReplyStrategy;
-use super::llm::LlmReplyStrategy;
+use super::llm::SimpleLlmReplyStrategy;
 use super::{MessageContent, MessageContext, RelyStrategy, ReplyError, Env};
 use crate::{BOT_CACHE, StrategeType};
 use crate::service::group_config_service::GROUP_CACHE;
@@ -7,14 +7,14 @@ use crate::service::group_config_service::GROUP_CACHE;
 #[derive(Clone)]
 pub struct ReplyManager {
     cmd_strategy: CommandReplyStrategy,
-    llm_strategy: LlmReplyStrategy,
+    llm_strategy: SimpleLlmReplyStrategy,
 }
 
 impl ReplyManager {
     pub fn new() -> Self {
         Self {
             cmd_strategy: CommandReplyStrategy::new(),
-            llm_strategy: LlmReplyStrategy::new(),
+            llm_strategy: SimpleLlmReplyStrategy::new(),
         }
     }
 
