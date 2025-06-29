@@ -1,5 +1,5 @@
 use qqbot_core::{
-    cmd::CMD_REGISTRY,
+    cmd::{CMD_REGISTRY, Execute},
     config::get_db,
 };
 
