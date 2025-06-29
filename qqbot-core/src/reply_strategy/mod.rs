@@ -3,6 +3,7 @@ use core::fmt;
 
 pub mod cmd;
 pub mod llm;
+pub mod llm_full;
 pub mod reply_manager;
 #[derive(Debug, Clone)]
 pub enum Env {
@@ -25,11 +26,87 @@ pub struct FileAttachment {
     pub mime_type: Option<String>,
 }
 
+// OneBot11 图片信息结构
+#[derive(Debug, Clone)]
+pub struct ImageInfo {
+    pub file: String,
+    pub url: Option<String>,
+    pub summary: Option<String>,
+    pub sub_type: Option<u32>,
+    pub file_size: Option<u64>,
+    pub key: Option<String>,
+    pub emoji_id: Option<String>,
+    pub emoji_package_id: Option<String>,
+}
+
+// 消息段类型，对应OneBot11协议的消息段
+#[derive(Debug, Clone)]
+pub enum MessageSegment {
+    Text { text: String },
+    Image { image_info: ImageInfo },
+    At { qq: String },
+    Face { id: u32 },
+    // 可以根据需要添加更多消息段类型
+}
+
 #[derive(Debug, Clone)]
 pub enum MessageContent {
-    Text(String),
-    Image(FileAttachment),
-    File(FileAttachment),
+    Text(String),                           // 纯文本消息（向后兼容）
+    Image(FileAttachment),                  // 纯图片消息（向后兼容）
+    File(FileAttachment),                   // 文件消息（向后兼容）
+    Mixed(Vec<MessageSegment>),             // 混合消息（图文并茂）
+}
+
+impl MessageContent {
+    pub fn has_text(&self) -> bool {
+        match self {
+            MessageContent::Text(text) => !text.trim().is_empty(),
+            MessageContent::Mixed(segments) => {
+                segments.iter().any(|seg| matches!(seg, MessageSegment::Text { .. }))
+            },
+            _ => false,
+        }
+    }
+    
+    pub fn get_text(&self) -> String {
+        match self {
+            MessageContent::Text(text) => text.clone(),
+            MessageContent::Mixed(segments) => {
+                segments.iter()
+                    .filter_map(|seg| match seg {
+                        MessageSegment::Text { text } => Some(text.as_str()),
+                        _ => None,
+                    })
+                    .collect::<Vec<_>>()
+                    .join(" ")
+            },
+            _ => String::new(),
+        }
+    }
+    
+    pub fn has_image(&self) -> bool {
+        match self {
+            MessageContent::Image(_) => true,
+            MessageContent::Mixed(segments) => {
+                segments.iter().any(|seg| matches!(seg, MessageSegment::Image { .. }))
+            },
+            _ => false,
+        }
+    }
+    
+    pub fn get_images(&self) -> Vec<&ImageInfo> {
+        match self {
+            MessageContent::Mixed(segments) => {
+                segments.iter()
+                    .filter_map(|seg| match seg {
+                        MessageSegment::Image { image_info } => Some(image_info),
+                        _ => None,
+                    })
+                    .collect()
+            },
+            _ => Vec::new(),
+        }
+    }
 }
 #[derive(Debug)]
 pub struct MessageContext {

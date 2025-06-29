@@ -1,4 +1,4 @@
-use kovi::PluginBuilder as plugin;
+use kovi::{bot::plugin_builder::event, PluginBuilder as plugin};
 use qqbot_core::{
     BOT_CACHE, SessionId, StrategeType,
     config::{APPCONFIG, get_db},
@@ -11,7 +11,7 @@ use qqbot_core::{
 async fn main() {
     let bot = plugin::get_runtime_bot();
     get_db().await;
-
+    
     // 创建回复管理器
     let reply_manager = ReplyManager::new();
 
@@ -46,8 +46,15 @@ async fn main() {
 
             let (strategy, _custom_prompt) = effective_config;
 
-            // 处理消息
-            if let Some(msg) = event.borrow_text() {
+            // 处理消息 - 解析混合消息内容
+            let message_content = parse_message_content(&event);
+            let has_text = message_content.has_text();
+            let has_image = message_content.has_image();
+            let text_content = message_content.get_text();
+
+            // 如果消息包含文本或图片，则处理
+            if has_text || has_image {
+                let msg = text_content.clone();
                 // 检查是否被@了（仅在群聊中有效）
                 let is_mentioned = if event.message_type == "group" {
                     event.message.iter().any(|m| {
@@ -134,9 +141,18 @@ async fn main() {
                             .unwrap_or_else(|| format!("用户{}", event.sender.user_id)),
                     };
 
+                    // 根据消息类型构建描述
+                    let content_description = if has_image && has_text {
+                        format!("{} [包含图片]", text_content)
+                    } else if has_image {
+                        "[图片消息]".to_string()
+                    } else {
+                        text_content.clone()
+                    };
+
                     ConversationManager::add_user_message_with_info(
                         session_id,
-                        msg.to_string(),
+                        content_description,
                         event.sender.user_id,
                         match env {
                             Env::Group { .. } => Some(username),
@@ -165,7 +181,7 @@ async fn main() {
                         env,
                         sender_id: event.sender.user_id,
                         self_id: event.self_id,
-                        message: MessageContent::Text(msg.to_string()),
+                        message: message_content.clone(),
                         group_admin: event.sender.role == Some(String::from("admin"))
                             || event.sender.role == Some(String::from("owner")),
                         history: vec![], // 未来可以扩展为真实的对话历史
@@ -176,7 +192,7 @@ async fn main() {
                             .or_else(|| event.sender.nickname.clone())
                             .or_else(|| Some(format!("用户{}", event.sender.user_id))),
                     };
-
+                    
                     // 使用统一的回复管理器处理消息
                     let reply_msg = match reply_manager.reply(&message_context).await {
                         Ok(MessageContent::Text(res)) => res,
@@ -190,6 +206,7 @@ async fn main() {
                                 format!("处理失败: {}", err)
                             }
                         }
+                        
                         _ => "收到了不支持的回复类型".to_string(),
                     };
                     let reply_msg = String::from(reply_msg.trim());
@@ -212,4 +229,86 @@ async fn main() {
             }
         }
     });
+}
+
+// 解析kovi消息数组为MessageContent
+fn parse_message_content(event: &event::MsgEvent) -> MessageContent {
+    use qqbot_core::reply_strategy::{MessageSegment, ImageInfo};
+    
+    let mut segments = Vec::new();
+    
+    for msg_segment in event.message.iter() {
+        match msg_segment.type_.as_str() {
+            "text" => {
+                if let Some(text) = msg_segment.data.get("text").and_then(|v| v.as_str()) {
+                    if !text.trim().is_empty() {
+                        segments.push(MessageSegment::Text { 
+                            text: text.to_string() 
+                        });
+                    }
+                }
+            },
+            "image" => {
+                let image_info = ImageInfo {
+                    file: msg_segment.data.get("file")
+                        .and_then(|v| v.as_str())
+                        .unwrap_or("unknown")
+                        .to_string(),
+                    url: msg_segment.data.get("url")
+                        .and_then(|v| v.as_str())
+                        .map(|s| s.to_string()),
+                    summary: msg_segment.data.get("summary")
+                        .and_then(|v| v.as_str())
+                        .map(|s| s.to_string()),
+                    sub_type: msg_segment.data.get("sub_type")
+                        .and_then(|v| v.as_u64())
+                        .map(|n| n as u32),
+                    file_size: msg_segment.data.get("file_size")
+                        .and_then(|v| v.as_u64()),
+                    key: msg_segment.data.get("key")
+                        .and_then(|v| v.as_str())
+                        .map(|s| s.to_string()),
+                    emoji_id: msg_segment.data.get("emoji_id")
+                        .and_then(|v| v.as_str())
+                        .map(|s| s.to_string()),
+                    emoji_package_id: msg_segment.data.get("emoji_package_id")
+                        .and_then(|v| v.as_str())
+                        .map(|s| s.to_string()),
+                };
+                segments.push(MessageSegment::Image { image_info });
+            },
+            "at" => {
+                if let Some(qq) = msg_segment.data.get("qq").and_then(|v| v.as_str()) {
+                    segments.push(MessageSegment::At { 
+                        qq: qq.to_string() 
+                    });
+                }
+            },
+            "face" => {
+                if let Some(id) = msg_segment.data.get("id").and_then(|v| v.as_u64()) {
+                    segments.push(MessageSegment::Face { 
+                        id: id as u32 
+                    });
+                }
+            },
+            _ => {
+                // 忽略其他类型的消息段
+            }
+        }
+    }
+    
+    // 根据消息内容决定返回类型
+    if segments.is_empty() {
+        // 空消息，返回空文本
+        MessageContent::Text(String::new())
+    } else if segments.len() == 1 {
+        // 单一类型消息，尝试向后兼容
+        match &segments[0] {
+            MessageSegment::Text { text } => MessageContent::Text(text.clone()),
+            _ => MessageContent::Mixed(segments),
+        }
+    } else {
+        // 多段消息，返回混合类型
+        MessageContent::Mixed(segments)
+    }
 }

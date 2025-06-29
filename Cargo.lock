@@ -2919,6 +2919,7 @@ dependencies = [
  "anyhow",
  "async-once-cell",
  "async-trait",
+ "base64 0.22.1",
  "chrono",
  "clap",
  "config",
