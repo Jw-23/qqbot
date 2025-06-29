@@ -1,11 +1,13 @@
 pub mod bind;
 pub mod query;
 pub mod strategy;
+pub mod push;
 
 use bind::Bind;
 use once_cell::sync::Lazy;
 use query::Query;
 use strategy::Strategy;
+use self::push::Push;
 // Assuming query module exists and defines Query structuse clap::Parser;
 use crate::error::AppError;
 use clap::Parser;
@@ -48,6 +50,24 @@ pub trait HandlerBuilder {
     fn build() -> CmdHandler;
 }
 
+impl CommonArgs {
+    pub fn env(&self) -> &str {
+        &self.env
+    }
+    
+    pub fn sender(&self) -> i64 {
+        self.sender
+    }
+    
+    pub fn group_id(&self) -> i64 {
+        self.group_id
+    }
+    
+    pub fn group_admin(&self) -> bool {
+        self.group_admin
+    }
+}
+
 // --- Execute Trait (Keep as is) ---
 pub trait Execute {
     // Takes &Vec<&str> which is fine for passing arguments *to* execute
@@ -88,5 +108,6 @@ pub static CMD_REGISTRY: Lazy<CmdRegistry> = Lazy::new(|| {
     m.insert("query".into(), Query::build());
     m.insert("bind".into(), Bind::build());
     m.insert("strategy".into(), Strategy::build());
+    m.insert("push".into(), Push::build());
     m
 });

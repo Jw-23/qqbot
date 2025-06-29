@@ -7,3 +7,4 @@ edition = "2024"
 kovi = "0.11.10"
 reply = { path = "../plugins/reply" }
 apply-request={path = "../plugins/apply-request"}
+push = { path = "../plugins/push" }

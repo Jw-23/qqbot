@@ -49,3 +49,81 @@ impl UserService for StuServiceImpl {
         Ok(())
     }
 }
+
+// 添加便利函数用于admin后台
+pub async fn create_student(
+    student_id: i64,
+    name: &str,
+    qq_number: i64,
+    group_id: i64,
+) -> AppResult<Model> {
+    use crate::config::get_db;
+    use crate::models::student::{ActiveModel, Entity as Student};
+    use sea_orm::{ActiveModelTrait, Set};
+
+    let db = get_db().await;
+
+    let student = ActiveModel {
+        student_id: Set(student_id),
+        name: Set(name.to_string()),
+        qq_number: Set(qq_number),
+        group_id: Set(group_id),
+        ..Default::default()
+    };
+
+    let result = student.insert(db.as_ref()).await.map_err(AppError::from)?;
+    Ok(result)
+}
+
+pub async fn update_student_by_id(
+    id: i64,
+    student_id: Option<i64>,
+    name: Option<String>,
+    qq_number: Option<i64>,
+    group_id: Option<i64>,
+) -> AppResult<Model> {
+    use crate::config::get_db;
+    use crate::models::student::{ActiveModel, Entity as Student};
+    use sea_orm::{ActiveModelTrait, EntityTrait, Set};
+    
+    let db = get_db().await;
+    
+    let student = Student::find_by_id(id)
+        .one(db.as_ref())
+        .await
+        .map_err(AppError::from)?
+        .ok_or_else(|| AppError::not_found(format!("学生ID: {}", id)))?;
+    
+    let mut active_model: ActiveModel = student.into();
+    
+    if let Some(student_id) = student_id {
+        active_model.student_id = Set(student_id);
+    }
+    if let Some(name) = name {
+        active_model.name = Set(name);
+    }
+    if let Some(qq_number) = qq_number {
+        active_model.qq_number = Set(qq_number);
+    }
+    if let Some(group_id) = group_id {
+        active_model.group_id = Set(group_id);
+    }
+    
+    let result = active_model.update(db.as_ref()).await.map_err(AppError::from)?;
+    Ok(result)
+}
+
+pub async fn delete_student_by_id(id: i64) -> AppResult<()> {
+    use crate::config::get_db;
+    use crate::models::student::Entity as Student;
+    use sea_orm::EntityTrait;
+
+    let db = get_db().await;
+
+    Student::delete_by_id(id)
+        .exec(db.as_ref())
+        .await
+        .map_err(AppError::from)?;
+
+    Ok(())
+}
